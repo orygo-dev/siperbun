@@ -1,0 +1,63 @@
+# Alur Sertifikasi
+
+## Status pengajuan
+
+```
+DRAFT
+  → SUBMITTED
+  → ADMIN_REVIEW
+  → ADMIN_REVISION_REQUIRED (loop) / DOCUMENT_COMPLETE
+    → WAITING_ASSIGNMENT
+    → INSPECTION_SCHEDULED
+    → INSPECTION_IN_PROGRESS
+    → FIELD_REVISION_REQUIRED (loop) / WAITING_RESULT_VALIDATION
+    → INSPECTION_PASSED / INSPECTION_FAILED
+    → CERTIFICATE_ISSUED_MANUALLY
+    → WAITING_CERTIFICATE_SCAN
+    → CERTIFICATE_SCAN_UPLOADED
+    → COMPLETED
+
+Cabang terminal: REJECTED, CANCELLED
+```
+
+## Peta transisi yang diizinkan
+
+Backend menegakkan peta berikut pada setiap perubahan status:
+
+| Dari | Ke |
+|------|----|
+| DRAFT | SUBMITTED, CANCELLED |
+| SUBMITTED | ADMIN_REVIEW, CANCELLED |
+| ADMIN_REVIEW | ADMIN_REVISION_REQUIRED, DOCUMENT_COMPLETE, REJECTED |
+| ADMIN_REVISION_REQUIRED | SUBMITTED, CANCELLED |
+| DOCUMENT_COMPLETE | WAITING_ASSIGNMENT |
+| WAITING_ASSIGNMENT | INSPECTION_SCHEDULED, CANCELLED |
+| INSPECTION_SCHEDULED | INSPECTION_IN_PROGRESS, WAITING_ASSIGNMENT |
+| INSPECTION_IN_PROGRESS | FIELD_REVISION_REQUIRED, WAITING_RESULT_VALIDATION |
+| FIELD_REVISION_REQUIRED | INSPECTION_IN_PROGRESS, CANCELLED |
+| WAITING_RESULT_VALIDATION | INSPECTION_PASSED, INSPECTION_FAILED |
+| INSPECTION_PASSED | CERTIFICATE_ISSUED_MANUALLY |
+| INSPECTION_FAILED | REJECTED, CANCELLED |
+| CERTIFICATE_ISSUED_MANUALLY | WAITING_CERTIFICATE_SCAN |
+| WAITING_CERTIFICATE_SCAN | CERTIFICATE_SCAN_UPLOADED |
+| CERTIFICATE_SCAN_UPLOADED | COMPLETED |
+| COMPLETED / REJECTED / CANCELLED | _(terminal)_ |
+
+Setiap transisi menulis `ApplicationStatusHistory` (from/to/changedById/notes).
+
+## Endpoint aksi
+
+| Aksi | Endpoint | Transisi | Permission |
+|------|----------|----------|------------|
+| Ajukan | `POST /:id/submit` | DRAFT / ADMIN_REVISION_REQUIRED → SUBMITTED → ADMIN_REVIEW | APPLICATION_CREATE atau APPLICATION_VERIFY |
+| Verifikasi lolos | `POST /:id/verify` | ADMIN_REVIEW → DOCUMENT_COMPLETE → WAITING_ASSIGNMENT | APPLICATION_VERIFY |
+| Minta perbaikan | `POST /:id/request-revision` | ADMIN_REVIEW → ADMIN_REVISION_REQUIRED | APPLICATION_VERIFY |
+| Tugaskan PBT | `POST /:id/assign-inspector` | WAITING_ASSIGNMENT → INSPECTION_SCHEDULED (+ FieldAssignment) | APPLICATION_ASSIGN |
+| Ubah status | `POST /:id/change-status` | sesuai peta di atas | APPLICATION_VERIFY |
+
+## Aturan
+
+- Transisi status dikontrol backend; status di luar peta ditolak
+- Tidak semua role boleh mengubah status (lihat permission di atas)
+- Sertifikat resmi diterbitkan manual di luar sistem; sistem menyimpan metadata + scan
+- File scan disimpan di storage backend, bukan Base64 di MySQL

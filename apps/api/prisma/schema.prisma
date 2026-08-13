@@ -1,0 +1,1228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  ADMIN_REVIEW
+  ADMIN_REVISION_REQUIRED
+  DOCUMENT_COMPLETE
+  WAITING_ASSIGNMENT
+  INSPECTION_SCHEDULED
+  INSPECTION_IN_PROGRESS
+  FIELD_REVISION_REQUIRED
+  WAITING_RESULT_VALIDATION
+  INSPECTION_PASSED
+  INSPECTION_FAILED
+  CERTIFICATE_ISSUED_MANUALLY
+  WAITING_CERTIFICATE_SCAN
+  CERTIFICATE_SCAN_UPLOADED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  SCHEDULED
+  CONFIRMED
+  EN_ROUTE
+  INSPECTING
+  COMPLETED
+  RESCHEDULED
+  CANCELLED
+}
+
+enum CertificateStatus {
+  WAITING_ISSUANCE
+  ISSUED_MANUALLY
+  WAITING_SCAN
+  SCAN_UPLOADED
+  WAITING_VERIFICATION
+  ACTIVE
+  REJECTED
+  REPLACED
+  CANCELLED
+  EXPIRED
+}
+
+enum FindingStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_VERIFICATION
+  ACCEPTED
+  REJECTED
+  CLOSED
+}
+
+enum ProductionStatus {
+  PREPARATION
+  SOWING
+  GROWING
+  READY_FOR_INSPECTION
+  UNDER_INSPECTION
+  PASSED
+  FAILED
+  COMPLETED
+  CANCELLED
+}
+
+enum ProducerStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  VERIFIED
+  ACTIVE
+  INACTIVE
+  REJECTED
+}
+
+enum RegionType {
+  PROVINSI
+  KABUPATEN
+  KECAMATAN
+  DESA
+}
+
+enum DocumentKind {
+  NIB
+  KTP
+  SIUP
+  SURAT_TANAH
+  FOTO
+  SERTIFIKAT
+  LAINNYA
+}
+
+enum MapMarkerType {
+  NURSERY_ACTIVE
+  NURSERY_PROCESS
+  NURSERY_FINDING
+  SEED_GARDEN
+}
+
+enum PublicListingStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ProducerRegistrationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ─── Auth & Access ───────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid()) @db.Char(36)
+  email        String    @unique @db.VarChar(191)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  name         String    @db.VarChar(191)
+  phone        String?   @db.VarChar(30)
+  avatarUrl    String?   @map("avatar_url") @db.VarChar(500)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  officeId     String?   @map("office_id") @db.Char(36)
+  regionId     String?   @map("region_id") @db.Char(36)
+  producerId   String?   @map("producer_id") @db.Char(36)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  office   Office?   @relation(fields: [officeId], references: [id])
+  region   Region?   @relation(fields: [regionId], references: [id])
+  producer Producer? @relation(fields: [producerId], references: [id])
+
+  userRoles             UserRole[]
+  refreshTokens         RefreshToken[]
+  fieldAssignments      FieldAssignment[]      @relation("InspectorAssignments")
+  createdAssignments    FieldAssignment[]      @relation("AssignmentCreator")
+  fieldInspections      FieldInspection[]
+  uploadedCertificates  Certificate[]          @relation("CertificateUploader")
+  verifiedCertificates  Certificate[]          @relation("CertificateVerifier")
+  notifications         Notification[]
+  activityLogs          ActivityLog[]
+  auditLogs             AuditLog[]
+  productionLogs        ProductionLog[]
+  storedFiles           StoredFile[]
+  statusChanges         ApplicationStatusHistory[]
+  reviewedRegistrations ProducerRegistrationRequest[] @relation("RegistrationReviewer")
+
+  @@index([officeId])
+  @@index([regionId])
+  @@index([producerId])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Role {
+  id          String    @id @default(uuid()) @db.Char(36)
+  slug        String    @unique @db.VarChar(50)
+  name        String    @db.VarChar(100)
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Char(36)
+  key         String   @unique @db.VarChar(100)
+  name        String   @db.VarChar(150)
+  module      String   @db.VarChar(50)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  rolePermissions RolePermission[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model UserRole {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String   @map("user_id") @db.Char(36)
+  roleId    String   @map("role_id") @db.Char(36)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid()) @db.Char(36)
+  roleId       String   @map("role_id") @db.Char(36)
+  permissionId String   @map("permission_id") @db.Char(36)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Char(36)
+  userId    String    @map("user_id") @db.Char(36)
+  tokenHash String    @map("token_hash") @db.VarChar(255)
+  deviceInfo String?  @map("device_info") @db.VarChar(255)
+  ipAddress String?   @map("ip_address") @db.VarChar(45)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+// ─── Master Data ─────────────────────────────────────────────────────────────
+
+model Office {
+  id        String    @id @default(uuid()) @db.Char(36)
+  name      String    @db.VarChar(191)
+  code      String?   @unique @db.VarChar(50)
+  address   String?   @db.Text
+  phone     String?   @db.VarChar(30)
+  email     String?   @db.VarChar(191)
+  regionId  String?   @map("region_id") @db.Char(36)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  region Region? @relation(fields: [regionId], references: [id])
+  users  User[]
+
+  @@map("offices")
+}
+
+model Region {
+  id        String     @id @default(uuid()) @db.Char(36)
+  code      String     @unique @db.VarChar(20)
+  name      String     @db.VarChar(150)
+  type      RegionType
+  parentId  String?    @map("parent_id") @db.Char(36)
+  latitude  Decimal?   @db.Decimal(10, 7)
+  longitude Decimal?   @db.Decimal(10, 7)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
+
+  parent   Region?  @relation("RegionTree", fields: [parentId], references: [id])
+  children Region[] @relation("RegionTree")
+  offices  Office[]
+  users    User[]
+  producers Producer[] @relation("ProducerKabupaten")
+  nurseries NurseryLocation[]
+  seedGardens SeedGarden[]
+  registrationRequests ProducerRegistrationRequest[]
+
+  @@index([parentId])
+  @@index([type])
+  @@map("regions")
+}
+
+model Commodity {
+  id        String    @id @default(uuid()) @db.Char(36)
+  code      String    @unique @db.VarChar(20)
+  name      String    @db.VarChar(100)
+  scientificName String? @map("scientific_name") @db.VarChar(150)
+  unit      String    @default("batang") @db.VarChar(30)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  varieties      Variety[]
+  seedStandards  SeedStandard[]
+  seedGardens    SeedGarden[]
+  seedSources    SeedSource[]
+  productionBatches ProductionBatch[]
+  applications   CertificationApplication[]
+  nurseries      NurseryLocation[]
+  publicListings PublicListing[]
+
+  @@map("commodities")
+}
+
+model Variety {
+  id           String    @id @default(uuid()) @db.Char(36)
+  commodityId  String    @map("commodity_id") @db.Char(36)
+  code         String    @db.VarChar(30)
+  name         String    @db.VarChar(100)
+  clone        String?   @db.VarChar(100)
+  description  String?   @db.Text
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  commodity         Commodity @relation(fields: [commodityId], references: [id])
+  seedGardens       SeedGarden[]
+  seedSources       SeedSource[]
+  productionBatches ProductionBatch[]
+  applications      CertificationApplication[]
+  publicListings    PublicListing[]
+
+  @@unique([commodityId, code])
+  @@map("varieties")
+}
+
+model SeedStandard {
+  id          String   @id @default(uuid()) @db.Char(36)
+  commodityId String   @map("commodity_id") @db.Char(36)
+  name        String   @db.VarChar(150)
+  parameter   String   @db.VarChar(100)
+  minValue    Decimal? @map("min_value") @db.Decimal(12, 2)
+  maxValue    Decimal? @map("max_value") @db.Decimal(12, 2)
+  unit        String?  @db.VarChar(30)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  commodity Commodity @relation(fields: [commodityId], references: [id])
+
+  @@index([commodityId])
+  @@map("seed_standards")
+}
+
+// ─── Producer Domain ─────────────────────────────────────────────────────────
+
+model Producer {
+  id                 String         @id @default(uuid()) @db.Char(36)
+  registrationNumber String         @unique @map("registration_number") @db.VarChar(50)
+  businessName       String         @map("business_name") @db.VarChar(191)
+  businessType       String?        @map("business_type") @db.VarChar(50)
+  ownerName          String         @map("owner_name") @db.VarChar(191)
+  nik                String?        @db.VarChar(20)
+  nib                String?        @db.VarChar(50)
+  phone              String?        @db.VarChar(30)
+  email              String?        @db.VarChar(191)
+  address            String?        @db.Text
+  provinceId         String?        @map("province_id") @db.Char(36)
+  kabupatenId        String?        @map("kabupaten_id") @db.Char(36)
+  kecamatan          String?        @db.VarChar(100)
+  desa               String?        @db.VarChar(100)
+  latitude           Decimal?       @db.Decimal(10, 7)
+  longitude          Decimal?       @db.Decimal(10, 7)
+  productionCapacity BigInt?        @map("production_capacity")
+  status             ProducerStatus @default(PENDING_VERIFICATION)
+  isActive           Boolean        @default(true) @map("is_active")
+  notes              String?        @db.Text
+  verifiedAt         DateTime?      @map("verified_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  deletedAt          DateTime?      @map("deleted_at")
+
+  kabupaten Region? @relation("ProducerKabupaten", fields: [kabupatenId], references: [id])
+
+  users                 User[]
+  documents             ProducerDocument[]
+  nurseries             NurseryLocation[]
+  seedGardens           SeedGarden[]
+  seedSources           SeedSource[]
+  productionBatches     ProductionBatch[]
+  applications          CertificationApplication[]
+  certificates          Certificate[]
+  seedDistributions     SeedDistribution[]
+  labelDistributions    LabelDistribution[]
+  publicListings        PublicListing[]
+  registrationAsCreated ProducerRegistrationRequest[] @relation("RegistrationCreatedProducer")
+
+  @@index([status])
+  @@index([kabupatenId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("producers")
+}
+
+model ProducerDocument {
+  id         String       @id @default(uuid()) @db.Char(36)
+  producerId String       @map("producer_id") @db.Char(36)
+  kind       DocumentKind @default(LAINNYA)
+  title      String       @db.VarChar(191)
+  fileId     String?      @map("file_id") @db.Char(36)
+  notes      String?      @db.Text
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  deletedAt  DateTime?    @map("deleted_at")
+
+  producer Producer    @relation(fields: [producerId], references: [id], onDelete: Cascade)
+  file     StoredFile? @relation(fields: [fileId], references: [id])
+
+  @@index([producerId])
+  @@map("producer_documents")
+}
+
+model NurseryLocation {
+  id           String    @id @default(uuid()) @db.Char(36)
+  producerId   String    @map("producer_id") @db.Char(36)
+  commodityId  String?   @map("commodity_id") @db.Char(36)
+  regionId     String?   @map("region_id") @db.Char(36)
+  name         String    @db.VarChar(191)
+  address      String?   @db.Text
+  latitude     Decimal?  @db.Decimal(10, 7)
+  longitude    Decimal?  @db.Decimal(10, 7)
+  areaHa       Decimal?  @map("area_ha") @db.Decimal(12, 4)
+  capacity     BigInt?
+  waterSource  String?   @map("water_source") @db.VarChar(100)
+  facilities   String?   @db.Text
+  status       String    @default("ACTIVE") @db.VarChar(30)
+  markerType   MapMarkerType @default(NURSERY_ACTIVE) @map("marker_type")
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  producer          Producer  @relation(fields: [producerId], references: [id])
+  commodity         Commodity? @relation(fields: [commodityId], references: [id])
+  region            Region?   @relation(fields: [regionId], references: [id])
+  documents         NurseryDocument[]
+  productionBatches ProductionBatch[]
+  applications      CertificationApplication[]
+  publicListings    PublicListing[]
+
+  @@index([producerId])
+  @@index([regionId])
+  @@index([status])
+  @@map("nursery_locations")
+}
+
+model NurseryDocument {
+  id        String       @id @default(uuid()) @db.Char(36)
+  nurseryId String       @map("nursery_id") @db.Char(36)
+  kind      DocumentKind @default(LAINNYA)
+  title     String       @db.VarChar(191)
+  fileId    String?      @map("file_id") @db.Char(36)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  deletedAt DateTime?    @map("deleted_at")
+
+  nursery NurseryLocation @relation(fields: [nurseryId], references: [id], onDelete: Cascade)
+  file    StoredFile?     @relation(fields: [fileId], references: [id])
+
+  @@index([nurseryId])
+  @@map("nursery_documents")
+}
+
+model SeedGarden {
+  id               String    @id @default(uuid()) @db.Char(36)
+  producerId       String?   @map("producer_id") @db.Char(36)
+  commodityId      String    @map("commodity_id") @db.Char(36)
+  varietyId        String?   @map("variety_id") @db.Char(36)
+  regionId         String?   @map("region_id") @db.Char(36)
+  name             String    @db.VarChar(191)
+  ownerName        String?   @map("owner_name") @db.VarChar(191)
+  address          String?   @db.Text
+  latitude         Decimal?  @db.Decimal(10, 7)
+  longitude        Decimal?  @db.Decimal(10, 7)
+  areaHa           Decimal?  @map("area_ha") @db.Decimal(12, 4)
+  clone            String?   @db.VarChar(100)
+  plantingYear     Int?      @map("planting_year")
+  motherTreeCount  Int?      @map("mother_tree_count")
+  estimatedYield   BigInt?   @map("estimated_yield")
+  decreeNumber     String?   @map("decree_number") @db.VarChar(100)
+  decreeDate       DateTime? @map("decree_date") @db.Date
+  validUntil       DateTime? @map("valid_until") @db.Date
+  status           String    @default("ACTIVE") @db.VarChar(30)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  producer    Producer?  @relation(fields: [producerId], references: [id])
+  commodity   Commodity  @relation(fields: [commodityId], references: [id])
+  variety     Variety?   @relation(fields: [varietyId], references: [id])
+  region      Region?    @relation(fields: [regionId], references: [id])
+  documents   SeedGardenDocument[]
+  seedSources SeedSource[]
+
+  @@index([producerId])
+  @@index([commodityId])
+  @@map("seed_gardens")
+}
+
+model SeedGardenDocument {
+  id           String       @id @default(uuid()) @db.Char(36)
+  seedGardenId String       @map("seed_garden_id") @db.Char(36)
+  kind         DocumentKind @default(LAINNYA)
+  title        String       @db.VarChar(191)
+  fileId       String?      @map("file_id") @db.Char(36)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  seedGarden SeedGarden  @relation(fields: [seedGardenId], references: [id], onDelete: Cascade)
+  file       StoredFile? @relation(fields: [fileId], references: [id])
+
+  @@index([seedGardenId])
+  @@map("seed_garden_documents")
+}
+
+model SeedSource {
+  id                   String    @id @default(uuid()) @db.Char(36)
+  producerId           String    @map("producer_id") @db.Char(36)
+  seedGardenId         String?   @map("seed_garden_id") @db.Char(36)
+  commodityId          String    @map("commodity_id") @db.Char(36)
+  varietyId            String?   @map("variety_id") @db.Char(36)
+  lotNumber            String    @map("lot_number") @db.VarChar(50)
+  receivedAt           DateTime? @map("received_at") @db.Date
+  quantity             Decimal   @db.Decimal(14, 2)
+  unit                 String    @default("kg") @db.VarChar(30)
+  supplier             String?   @db.VarChar(191)
+  originDocumentNumber String?   @map("origin_document_number") @db.VarChar(100)
+  sourceCertificateNo  String?   @map("source_certificate_no") @db.VarChar(100)
+  usedQuantity         Decimal   @default(0) @map("used_quantity") @db.Decimal(14, 2)
+  remainingStock       Decimal   @default(0) @map("remaining_stock") @db.Decimal(14, 2)
+  verificationStatus   String    @default("PENDING") @map("verification_status") @db.VarChar(30)
+  notes                String?   @db.Text
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
+
+  producer          Producer   @relation(fields: [producerId], references: [id])
+  seedGarden        SeedGarden? @relation(fields: [seedGardenId], references: [id])
+  commodity         Commodity  @relation(fields: [commodityId], references: [id])
+  variety           Variety?   @relation(fields: [varietyId], references: [id])
+  documents         SeedSourceDocument[]
+  productionBatches ProductionBatch[]
+
+  @@unique([producerId, lotNumber])
+  @@index([commodityId])
+  @@map("seed_sources")
+}
+
+model SeedSourceDocument {
+  id           String       @id @default(uuid()) @db.Char(36)
+  seedSourceId String       @map("seed_source_id") @db.Char(36)
+  kind         DocumentKind @default(LAINNYA)
+  title        String       @db.VarChar(191)
+  fileId       String?      @map("file_id") @db.Char(36)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  seedSource SeedSource  @relation(fields: [seedSourceId], references: [id], onDelete: Cascade)
+  file       StoredFile? @relation(fields: [fileId], references: [id])
+
+  @@index([seedSourceId])
+  @@map("seed_source_documents")
+}
+
+// ─── Production ──────────────────────────────────────────────────────────────
+
+model ProductionBatch {
+  id                String           @id @default(uuid()) @db.Char(36)
+  batchNumber       String           @unique @map("batch_number") @db.VarChar(50)
+  producerId        String           @map("producer_id") @db.Char(36)
+  nurseryId         String?          @map("nursery_id") @db.Char(36)
+  seedSourceId      String?          @map("seed_source_id") @db.Char(36)
+  commodityId       String           @map("commodity_id") @db.Char(36)
+  varietyId         String?          @map("variety_id") @db.Char(36)
+  startedAt         DateTime?        @map("started_at") @db.Date
+  initialCount      BigInt           @default(0) @map("initial_count")
+  grownCount        BigInt           @default(0) @map("grown_count")
+  deadCount         BigInt           @default(0) @map("dead_count")
+  rejectedCount     BigInt           @default(0) @map("rejected_count")
+  activeCount       BigInt           @default(0) @map("active_count")
+  readyCount        BigInt           @default(0) @map("ready_count")
+  status            ProductionStatus @default(PREPARATION)
+  notes             String?          @db.Text
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  deletedAt         DateTime?        @map("deleted_at")
+
+  producer     Producer         @relation(fields: [producerId], references: [id])
+  nursery      NurseryLocation? @relation(fields: [nurseryId], references: [id])
+  seedSource   SeedSource?      @relation(fields: [seedSourceId], references: [id])
+  commodity    Commodity        @relation(fields: [commodityId], references: [id])
+  variety      Variety?         @relation(fields: [varietyId], references: [id])
+  logs         ProductionLog[]
+  applications CertificationApplication[]
+  certificates Certificate[]
+  distributions SeedDistribution[]
+
+  @@index([producerId])
+  @@index([commodityId])
+  @@index([status])
+  @@map("production_batches")
+}
+
+model ProductionLog {
+  id          String   @id @default(uuid()) @db.Char(36)
+  batchId     String   @map("batch_id") @db.Char(36)
+  userId      String?  @map("user_id") @db.Char(36)
+  loggedAt    DateTime @default(now()) @map("logged_at")
+  stage       String   @db.VarChar(50)
+  activity    String   @db.VarChar(255)
+  countChange BigInt?  @map("count_change")
+  condition   String?  @db.VarChar(100)
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  batch ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  user  User?           @relation(fields: [userId], references: [id])
+
+  @@index([batchId])
+  @@map("production_logs")
+}
+
+// ─── Certification ───────────────────────────────────────────────────────────
+
+model CertificationApplication {
+  id                 String            @id @default(uuid()) @db.Char(36)
+  applicationNumber  String            @unique @map("application_number") @db.VarChar(50)
+  producerId         String            @map("producer_id") @db.Char(36)
+  batchId            String?           @map("batch_id") @db.Char(36)
+  commodityId        String            @map("commodity_id") @db.Char(36)
+  varietyId          String?           @map("variety_id") @db.Char(36)
+  nurseryId          String?           @map("nursery_id") @db.Char(36)
+  seedlingCount      BigInt            @map("seedling_count")
+  submittedAt        DateTime?         @map("submitted_at")
+  readyAt            DateTime?         @map("ready_at") @db.Date
+  inspectionType     String?           @map("inspection_type") @db.VarChar(50)
+  status             ApplicationStatus @default(DRAFT)
+  notes              String?           @db.Text
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  deletedAt          DateTime?         @map("deleted_at")
+
+  producer    Producer          @relation(fields: [producerId], references: [id])
+  batch       ProductionBatch?  @relation(fields: [batchId], references: [id])
+  commodity   Commodity         @relation(fields: [commodityId], references: [id])
+  variety     Variety?          @relation(fields: [varietyId], references: [id])
+  nursery     NurseryLocation?  @relation(fields: [nurseryId], references: [id])
+  documents   ApplicationDocument[]
+  statusHistory ApplicationStatusHistory[]
+  assignments FieldAssignment[]
+  findings    InspectionFinding[]
+  certificate Certificate?
+
+  @@index([producerId])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([commodityId])
+  @@map("certification_applications")
+}
+
+model ApplicationDocument {
+  id            String       @id @default(uuid()) @db.Char(36)
+  applicationId String       @map("application_id") @db.Char(36)
+  kind          DocumentKind @default(LAINNYA)
+  title         String       @db.VarChar(191)
+  fileId        String?      @map("file_id") @db.Char(36)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  deletedAt     DateTime?    @map("deleted_at")
+
+  application CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  file        StoredFile?              @relation(fields: [fileId], references: [id])
+
+  @@index([applicationId])
+  @@map("application_documents")
+}
+
+model ApplicationStatusHistory {
+  id            String            @id @default(uuid()) @db.Char(36)
+  applicationId String            @map("application_id") @db.Char(36)
+  fromStatus    ApplicationStatus? @map("from_status")
+  toStatus      ApplicationStatus @map("to_status")
+  changedById   String?           @map("changed_by_id") @db.Char(36)
+  notes         String?           @db.Text
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  application CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedBy   User?                    @relation(fields: [changedById], references: [id])
+
+  @@index([applicationId])
+  @@map("application_status_histories")
+}
+
+// ─── Inspection ──────────────────────────────────────────────────────────────
+
+model FieldAssignment {
+  id            String           @id @default(uuid()) @db.Char(36)
+  assignmentNumber String        @unique @map("assignment_number") @db.VarChar(50)
+  applicationId String           @map("application_id") @db.Char(36)
+  inspectorId   String           @map("inspector_id") @db.Char(36)
+  createdById   String?          @map("created_by_id") @db.Char(36)
+  scheduledDate DateTime         @map("scheduled_date") @db.Date
+  scheduledTime String?          @map("scheduled_time") @db.VarChar(10)
+  locationNotes String?          @map("location_notes") @db.Text
+  instructions  String?          @db.Text
+  status        AssignmentStatus @default(SCHEDULED)
+  completedAt   DateTime?        @map("completed_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  deletedAt     DateTime?        @map("deleted_at")
+
+  application CertificationApplication @relation(fields: [applicationId], references: [id])
+  inspector   User                     @relation("InspectorAssignments", fields: [inspectorId], references: [id])
+  createdBy   User?                    @relation("AssignmentCreator", fields: [createdById], references: [id])
+  inspection  FieldInspection?
+
+  @@index([applicationId])
+  @@index([inspectorId])
+  @@index([scheduledDate])
+  @@index([status])
+  @@map("field_assignments")
+}
+
+model FieldInspection {
+  id              String    @id @default(uuid()) @db.Char(36)
+  assignmentId    String    @unique @map("assignment_id") @db.Char(36)
+  inspectorId     String    @map("inspector_id") @db.Char(36)
+  startedAt       DateTime? @map("started_at")
+  finishedAt      DateTime? @map("finished_at")
+  latitude        Decimal?  @db.Decimal(10, 7)
+  longitude       Decimal?  @db.Decimal(10, 7)
+  gpsAccuracy     Decimal?  @map("gps_accuracy") @db.Decimal(8, 2)
+  populationCount BigInt?   @map("population_count")
+  sampleCount     BigInt?   @map("sample_count")
+  passedCount     BigInt?   @map("passed_count")
+  failedCount     BigInt?   @map("failed_count")
+  rejectedCount   BigInt?   @map("rejected_count")
+  conclusion      String?   @db.Text
+  recommendation  String?   @db.Text
+  notes           String?   @db.Text
+  isFinalized     Boolean   @default(false) @map("is_finalized")
+  finalizedAt     DateTime? @map("finalized_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  assignment FieldAssignment     @relation(fields: [assignmentId], references: [id])
+  inspector  User                @relation(fields: [inspectorId], references: [id])
+  results    InspectionResult[]
+  photos     InspectionPhoto[]
+  findings   InspectionFinding[]
+
+  @@index([inspectorId])
+  @@map("field_inspections")
+}
+
+model InspectionChecklist {
+  id          String   @id @default(uuid()) @db.Char(36)
+  commodityId String?  @map("commodity_id") @db.Char(36)
+  code        String   @db.VarChar(50)
+  label       String   @db.VarChar(191)
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  results InspectionResult[]
+
+  @@unique([code])
+  @@map("inspection_checklists")
+}
+
+model InspectionResult {
+  id           String   @id @default(uuid()) @db.Char(36)
+  inspectionId String   @map("inspection_id") @db.Char(36)
+  checklistId  String   @map("checklist_id") @db.Char(36)
+  value        String?  @db.VarChar(255)
+  isPassed     Boolean? @map("is_passed")
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  inspection FieldInspection     @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  checklist  InspectionChecklist @relation(fields: [checklistId], references: [id])
+
+  @@unique([inspectionId, checklistId])
+  @@map("inspection_results")
+}
+
+model InspectionPhoto {
+  id           String    @id @default(uuid()) @db.Char(36)
+  inspectionId String    @map("inspection_id") @db.Char(36)
+  fileId       String?   @map("file_id") @db.Char(36)
+  caption      String?   @db.VarChar(255)
+  takenAt      DateTime? @map("taken_at")
+  latitude     Decimal?  @db.Decimal(10, 7)
+  longitude    Decimal?  @db.Decimal(10, 7)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  inspection FieldInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  file       StoredFile?     @relation(fields: [fileId], references: [id])
+
+  @@index([inspectionId])
+  @@map("inspection_photos")
+}
+
+model InspectionFinding {
+  id            String        @id @default(uuid()) @db.Char(36)
+  applicationId String?       @map("application_id") @db.Char(36)
+  inspectionId  String?       @map("inspection_id") @db.Char(36)
+  findingType   String        @map("finding_type") @db.VarChar(100)
+  description   String        @db.Text
+  severity      Severity      @default(MEDIUM)
+  recommendation String?      @db.Text
+  dueDate       DateTime?     @map("due_date") @db.Date
+  status        FindingStatus @default(OPEN)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  deletedAt     DateTime?     @map("deleted_at")
+
+  application       CertificationApplication? @relation(fields: [applicationId], references: [id])
+  inspection        FieldInspection?          @relation(fields: [inspectionId], references: [id])
+  correctiveActions CorrectiveAction[]
+
+  @@index([status])
+  @@index([applicationId])
+  @@map("inspection_findings")
+}
+
+model CorrectiveAction {
+  id            String        @id @default(uuid()) @db.Char(36)
+  findingId     String        @map("finding_id") @db.Char(36)
+  description   String        @db.Text
+  evidenceNotes String?       @map("evidence_notes") @db.Text
+  fileId        String?       @map("file_id") @db.Char(36)
+  status        FindingStatus @default(IN_PROGRESS)
+  verifiedAt    DateTime?     @map("verified_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  deletedAt     DateTime?     @map("deleted_at")
+
+  finding InspectionFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  file    StoredFile?       @relation(fields: [fileId], references: [id])
+
+  @@index([findingId])
+  @@map("corrective_actions")
+}
+
+// ─── Certificate ─────────────────────────────────────────────────────────────
+
+model Certificate {
+  id                    String            @id @default(uuid()) @db.Char(36)
+  applicationId         String            @unique @map("application_id") @db.Char(36)
+  producerId            String            @map("producer_id") @db.Char(36)
+  batchId               String?           @map("batch_id") @db.Char(36)
+  certificateNumber     String            @unique @map("certificate_number") @db.VarChar(100)
+  issuedAt              DateTime?         @map("issued_at") @db.Date
+  expiresAt             DateTime?         @map("expires_at") @db.Date
+  certifiedCount        BigInt            @default(0) @map("certified_count")
+  signatoryName         String?           @map("signatory_name") @db.VarChar(191)
+  signatoryTitle        String?           @map("signatory_title") @db.VarChar(191)
+  status                CertificateStatus @default(WAITING_ISSUANCE)
+  currentFileId         String?           @map("current_file_id") @db.Char(36)
+  uploadedById          String?           @map("uploaded_by_id") @db.Char(36)
+  verifiedById          String?           @map("verified_by_id") @db.Char(36)
+  uploadedAt            DateTime?         @map("uploaded_at")
+  verifiedAt            DateTime?         @map("verified_at")
+  notes                 String?           @db.Text
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+  deletedAt             DateTime?         @map("deleted_at")
+
+  application CertificationApplication @relation(fields: [applicationId], references: [id])
+  producer    Producer                 @relation(fields: [producerId], references: [id])
+  batch       ProductionBatch?         @relation(fields: [batchId], references: [id])
+  currentFile StoredFile?              @relation("CertificateCurrentFile", fields: [currentFileId], references: [id])
+  uploadedBy  User?                    @relation("CertificateUploader", fields: [uploadedById], references: [id])
+  verifiedBy  User?                    @relation("CertificateVerifier", fields: [verifiedById], references: [id])
+  versions    CertificateVersion[]
+  labels      SeedLabel[]
+  distributions SeedDistribution[]
+
+  @@index([status])
+  @@index([producerId])
+  @@map("certificates")
+}
+
+model CertificateVersion {
+  id            String   @id @default(uuid()) @db.Char(36)
+  certificateId String   @map("certificate_id") @db.Char(36)
+  version       Int
+  fileId        String?  @map("file_id") @db.Char(36)
+  reason        String?  @db.VarChar(255)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  file        StoredFile? @relation(fields: [fileId], references: [id])
+
+  @@unique([certificateId, version])
+  @@map("certificate_versions")
+}
+
+// ─── Labels & Distribution ───────────────────────────────────────────────────
+
+model SeedLabel {
+  id            String    @id @default(uuid()) @db.Char(36)
+  certificateId String    @map("certificate_id") @db.Char(36)
+  serialStart   String    @map("serial_start") @db.VarChar(50)
+  serialEnd     String    @map("serial_end") @db.VarChar(50)
+  quantity      Int
+  receivedAt    DateTime? @map("received_at") @db.Date
+  handedOverAt  DateTime? @map("handed_over_at") @db.Date
+  recipient     String?   @db.VarChar(191)
+  usedCount     Int       @default(0) @map("used_count")
+  damagedCount  Int       @default(0) @map("damaged_count")
+  cancelledCount Int      @default(0) @map("cancelled_count")
+  remainingCount Int      @default(0) @map("remaining_count")
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  certificate   Certificate @relation(fields: [certificateId], references: [id])
+  distributions LabelDistribution[]
+
+  @@index([certificateId])
+  @@map("seed_labels")
+}
+
+model LabelDistribution {
+  id         String    @id @default(uuid()) @db.Char(36)
+  labelId    String    @map("label_id") @db.Char(36)
+  producerId String?   @map("producer_id") @db.Char(36)
+  quantity   Int
+  notes      String?   @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  label    SeedLabel @relation(fields: [labelId], references: [id])
+  producer Producer? @relation(fields: [producerId], references: [id])
+
+  @@index([labelId])
+  @@map("label_distributions")
+}
+
+model SeedDistribution {
+  id              String    @id @default(uuid()) @db.Char(36)
+  producerId      String    @map("producer_id") @db.Char(36)
+  certificateId   String?   @map("certificate_id") @db.Char(36)
+  batchId         String?   @map("batch_id") @db.Char(36)
+  buyerName       String    @map("buyer_name") @db.VarChar(191)
+  buyerAddress    String?   @map("buyer_address") @db.Text
+  destinationKab  String?   @map("destination_kab") @db.VarChar(100)
+  quantity        BigInt
+  distributedAt   DateTime  @map("distributed_at") @db.Date
+  deliveryNoteNo  String?   @map("delivery_note_no") @db.VarChar(100)
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  producer    Producer         @relation(fields: [producerId], references: [id])
+  certificate Certificate?     @relation(fields: [certificateId], references: [id])
+  batch       ProductionBatch? @relation(fields: [batchId], references: [id])
+
+  @@index([producerId])
+  @@map("seed_distributions")
+}
+
+// ─── Circulation Supervision ─────────────────────────────────────────────────
+
+model CirculationInspection {
+  id                String    @id @default(uuid()) @db.Char(36)
+  inspectionNumber  String    @unique @map("inspection_number") @db.VarChar(50)
+  inspectorName     String?   @map("inspector_name") @db.VarChar(191)
+  inspectedAt       DateTime  @map("inspected_at") @db.Date
+  location          String?   @db.VarChar(255)
+  latitude          Decimal?  @db.Decimal(10, 7)
+  longitude         Decimal?  @db.Decimal(10, 7)
+  businessName      String?   @map("business_name") @db.VarChar(191)
+  ownerName         String?   @map("owner_name") @db.VarChar(191)
+  commodityName     String?   @map("commodity_name") @db.VarChar(100)
+  seedlingCount     BigInt?   @map("seedling_count")
+  certificateNumber String?   @map("certificate_number") @db.VarChar(100)
+  certificateStatus String?   @map("certificate_status") @db.VarChar(50)
+  labelStatus       String?   @map("label_status") @db.VarChar(50)
+  actionTaken       String?   @map("action_taken") @db.Text
+  recommendation    String?   @db.Text
+  followUp          String?   @map("follow_up") @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  findings CirculationFinding[]
+
+  @@map("circulation_inspections")
+}
+
+model CirculationFinding {
+  id           String    @id @default(uuid()) @db.Char(36)
+  inspectionId String    @map("inspection_id") @db.Char(36)
+  category     String    @db.VarChar(100)
+  description  String    @db.Text
+  severity     Severity  @default(MEDIUM)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  inspection CirculationInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+  @@map("circulation_findings")
+}
+
+// ─── System ──────────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Char(36)
+  userId    String    @map("user_id") @db.Char(36)
+  type      String    @db.VarChar(50)
+  title     String    @db.VarChar(191)
+  body      String    @db.Text
+  link      String?   @db.VarChar(500)
+  isRead    Boolean   @default(false) @map("is_read")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String?  @map("user_id") @db.Char(36)
+  type      String   @db.VarChar(50)
+  title     String   @db.VarChar(255)
+  description String? @db.Text
+  entityType String? @map("entity_type") @db.VarChar(50)
+  entityId  String?  @map("entity_id") @db.Char(36)
+  meta      Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Char(36)
+  userId     String?  @map("user_id") @db.Char(36)
+  action     String   @db.VarChar(50)
+  module     String   @db.VarChar(50)
+  entityId   String?  @map("entity_id") @db.Char(36)
+  beforeData Json?    @map("before_data")
+  afterData  Json?    @map("after_data")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.VarChar(500)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([module])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model AppSetting {
+  id        String   @id @default(uuid()) @db.Char(36)
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
+
+enum BannerPlacement {
+  DASHBOARD
+  MOBILE
+}
+
+model DashboardBanner {
+  id          String          @id @default(uuid()) @db.Char(36)
+  title       String          @db.VarChar(120)
+  subtitle    String?         @db.VarChar(255)
+  imageFileId String?         @map("image_file_id") @db.Char(36)
+  linkUrl     String?         @map("link_url") @db.VarChar(500)
+  placement   BannerPlacement @default(DASHBOARD)
+  sortOrder   Int             @default(0) @map("sort_order")
+  isActive    Boolean         @default(true) @map("is_active")
+  startsAt    DateTime?       @map("starts_at")
+  endsAt      DateTime?       @map("ends_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  deletedAt   DateTime?       @map("deleted_at")
+
+  imageFile StoredFile? @relation(fields: [imageFileId], references: [id])
+
+  @@index([placement, isActive, sortOrder])
+  @@index([deletedAt])
+  @@map("dashboard_banners")
+}
+
+model PublicListing {
+  id           String              @id @default(uuid()) @db.Char(36)
+  producerId   String              @map("producer_id") @db.Char(36)
+  nurseryId    String?             @map("nursery_id") @db.Char(36)
+  commodityId  String              @map("commodity_id") @db.Char(36)
+  varietyId    String?             @map("variety_id") @db.Char(36)
+  title        String              @db.VarChar(160)
+  description  String?             @db.Text
+  availableQty BigInt?             @map("available_qty")
+  ageMonths    Int?                @map("age_months")
+  unit         String              @default("batang") @db.VarChar(30)
+  priceHint    String?             @map("price_hint") @db.VarChar(100)
+  status       PublicListingStatus @default(DRAFT)
+  publishedAt  DateTime?           @map("published_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+  deletedAt    DateTime?           @map("deleted_at")
+
+  producer  Producer              @relation(fields: [producerId], references: [id])
+  nursery   NurseryLocation?      @relation(fields: [nurseryId], references: [id])
+  commodity Commodity             @relation(fields: [commodityId], references: [id])
+  variety   Variety?              @relation(fields: [varietyId], references: [id])
+  photos    PublicListingPhoto[]
+
+  @@index([status, publishedAt])
+  @@index([producerId])
+  @@index([commodityId])
+  @@index([deletedAt])
+  @@map("public_listings")
+}
+
+model PublicListingPhoto {
+  id        String   @id @default(uuid()) @db.Char(36)
+  listingId String   @map("listing_id") @db.Char(36)
+  fileId    String   @map("file_id") @db.Char(36)
+  caption   String?  @db.VarChar(191)
+  sortOrder Int      @default(0) @map("sort_order")
+  isCover   Boolean  @default(false) @map("is_cover")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  listing PublicListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  file    StoredFile    @relation(fields: [fileId], references: [id])
+
+  @@index([listingId, sortOrder])
+  @@map("public_listing_photos")
+}
+
+model ProducerRegistrationRequest {
+  id                String                      @id @default(uuid()) @db.Char(36)
+  businessName      String                      @map("business_name") @db.VarChar(191)
+  ownerName         String                      @map("owner_name") @db.VarChar(191)
+  nik               String?                     @db.VarChar(20)
+  phone             String                      @db.VarChar(30)
+  email             String?                     @db.VarChar(191)
+  address           String?                     @db.Text
+  kabupatenId       String?                     @map("kabupaten_id") @db.Char(36)
+  kecamatan         String?                     @db.VarChar(100)
+  desa              String?                     @db.VarChar(100)
+  latitude          Decimal?                    @db.Decimal(10, 7)
+  longitude         Decimal?                    @db.Decimal(10, 7)
+  commodityInterest String?                     @map("commodity_interest") @db.VarChar(255)
+  notes             String?                     @db.Text
+  status            ProducerRegistrationStatus  @default(SUBMITTED)
+  reviewedById      String?                     @map("reviewed_by_id") @db.Char(36)
+  reviewedAt        DateTime?                   @map("reviewed_at")
+  reviewNotes       String?                     @map("review_notes") @db.Text
+  createdProducerId String?                     @map("created_producer_id") @db.Char(36)
+  createdAt         DateTime                    @default(now()) @map("created_at")
+  updatedAt         DateTime                    @updatedAt @map("updated_at")
+
+  kabupaten       Region?   @relation(fields: [kabupatenId], references: [id])
+  reviewedBy      User?     @relation("RegistrationReviewer", fields: [reviewedById], references: [id])
+  createdProducer Producer? @relation("RegistrationCreatedProducer", fields: [createdProducerId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([kabupatenId])
+  @@map("producer_registration_requests")
+}
+
+model StoredFile {
+  id           String    @id @default(uuid()) @db.Char(36)
+  originalName String    @map("original_name") @db.VarChar(255)
+  storageName  String    @map("storage_name") @db.VarChar(255)
+  mimeType     String    @map("mime_type") @db.VarChar(100)
+  size         BigInt
+  sha256       String    @db.VarChar(64)
+  path         String    @db.VarChar(500)
+  uploadedById String?   @map("uploaded_by_id") @db.Char(36)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  uploadedBy User? @relation(fields: [uploadedById], references: [id])
+
+  producerDocuments      ProducerDocument[]
+  nurseryDocuments       NurseryDocument[]
+  seedGardenDocuments    SeedGardenDocument[]
+  seedSourceDocuments    SeedSourceDocument[]
+  applicationDocuments   ApplicationDocument[]
+  inspectionPhotos       InspectionPhoto[]
+  correctiveActions      CorrectiveAction[]
+  certificateCurrent     Certificate[]         @relation("CertificateCurrentFile")
+  certificateVersions    CertificateVersion[]
+  dashboardBanners       DashboardBanner[]
+  publicListingPhotos    PublicListingPhoto[]
+
+  @@index([sha256])
+  @@map("stored_files")
+}

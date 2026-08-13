@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+.env
+.env.local
+coverage
+storage/uploads
+*.log
+.DS_Store
+prisma/*.db
+*.db-journal
+.turbo
+.vite
+apps/api/storage

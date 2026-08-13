@@ -1,0 +1,20 @@
+{
+  "name": "siperbun",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @siperbun/api --filter @siperbun/web dev",
+    "build": "pnpm -r --filter @siperbun/shared --filter @siperbun/ui --filter @siperbun/api --filter @siperbun/web build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @siperbun/api --filter @siperbun/web test",
+    "db:generate": "pnpm --filter @siperbun/api prisma:generate",
+    "db:migrate": "pnpm --filter @siperbun/api prisma:migrate",
+    "db:seed": "pnpm --filter @siperbun/api prisma:seed",
+    "db:push": "pnpm --filter @siperbun/api prisma:push",
+    "prisma:validate": "pnpm --filter @siperbun/api exec prisma validate"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.9"
+}
