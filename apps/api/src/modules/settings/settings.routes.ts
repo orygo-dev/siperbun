@@ -1,19 +1,21 @@
 import {
   BANNER_PLACEMENTS,
   PERMISSIONS,
+  ROLES,
   brandingUpdateSchema,
   dashboardBannerCreateSchema,
   dashboardBannerUpdateSchema,
   type BannerPlacement,
+  portalContentSchema,
 } from '@siperbun/shared';
 import { Router } from 'express';
-import { authenticate, requirePermission } from '../../middlewares/auth';
+import { authenticate, requirePermission, requireRole } from '../../middlewares/auth';
 import { uploadSingle } from '../../middlewares/upload';
-import { validateBody } from '../../middlewares/validate';
+import { requiredUuidParam, validateBody } from '../../middlewares/validate';
 import { AppError } from '../../utils/errors';
 import { AuthedRequest, success } from '../../utils/response';
 import { bannersService } from './banners.service';
-import { settingsService } from './settings.service';
+import { settingsService, type PortalMediaSlot } from './settings.service';
 
 function parsePlacement(value: unknown): BannerPlacement | undefined {
   if (value === BANNER_PLACEMENTS.MOBILE) return BANNER_PLACEMENTS.MOBILE;
@@ -22,6 +24,11 @@ function parsePlacement(value: unknown): BannerPlacement | undefined {
 }
 
 export const settingsRouter = Router();
+
+function parsePortalMediaSlot(value: unknown): PortalMediaSlot {
+  if (value === 'hero' || value === 'service') return value;
+  throw new AppError('Slot media portal tidak valid', 400);
+}
 
 /** Publik — dipakai halaman login & branding UI */
 settingsRouter.get('/branding', async (_req, res, next) => {
@@ -52,6 +59,104 @@ settingsRouter.get('/branding/logo', async (_req, res, next) => {
     next(e);
   }
 });
+
+/** Publik — seluruh konten landing page yang sudah tersimpan. */
+settingsRouter.get('/portal-content', async (_req, res, next) => {
+  try {
+    return success(
+      res,
+      await settingsService.getPortalContent(),
+      'Konten portal berhasil dimuat',
+    );
+  } catch (e) {
+    next(e);
+  }
+});
+
+settingsRouter.get('/portal-content/media/:slot', async (req, res, next) => {
+  try {
+    const media = await settingsService.getPortalMediaAbsolute(
+      parsePortalMediaSlot(req.params.slot),
+    );
+    if (!media) throw new AppError('Media portal belum diatur', 404);
+    res.setHeader('Content-Type', media.mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(media.originalName)}"`,
+    );
+    return res.sendFile(media.absolute);
+  } catch (e) {
+    next(e);
+  }
+});
+
+settingsRouter.put(
+  '/portal-content',
+  authenticate,
+  requireRole(ROLES.SUPER_ADMIN),
+  validateBody(portalContentSchema),
+  async (req, res, next) => {
+    try {
+      const user = (req as AuthedRequest).user!;
+      return success(
+        res,
+        await settingsService.updatePortalContent(req.body, {
+          id: user.id,
+          req,
+        }),
+        'Konten portal berhasil disimpan',
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+settingsRouter.post(
+  '/portal-content/media/:slot',
+  authenticate,
+  requireRole(ROLES.SUPER_ADMIN),
+  uploadSingle,
+  async (req, res, next) => {
+    try {
+      if (!req.file) throw new AppError('File gambar wajib diunggah', 400);
+      const user = (req as AuthedRequest).user!;
+      return success(
+        res,
+        await settingsService.uploadPortalMedia(
+          parsePortalMediaSlot(req.params.slot),
+          req.file,
+          { id: user.id, req },
+        ),
+        'Media portal berhasil diunggah',
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+settingsRouter.delete(
+  '/portal-content/media/:slot',
+  authenticate,
+  requireRole(ROLES.SUPER_ADMIN),
+  async (req, res, next) => {
+    try {
+      const user = (req as AuthedRequest).user!;
+      return success(
+        res,
+        await settingsService.clearPortalMedia(
+          parsePortalMediaSlot(req.params.slot),
+          { id: user.id, req },
+        ),
+        'Media portal berhasil dihapus',
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 
 settingsRouter.put(
   '/branding',
@@ -117,7 +222,9 @@ settingsRouter.get('/banners/active', async (req, res, next) => {
 /** Publik — stream gambar banner */
 settingsRouter.get('/banners/:id/image', async (req, res, next) => {
   try {
-    const image = await bannersService.getImageAbsolutePath(req.params.id);
+    const image = await bannersService.getImageAbsolutePath(
+      requiredUuidParam(req.params.id),
+    );
     if (!image) throw new AppError('Gambar banner tidak ditemukan', 404);
     res.setHeader('Content-Type', image.mimeType);
     res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -171,7 +278,10 @@ settingsRouter.put(
   validateBody(dashboardBannerUpdateSchema),
   async (req, res, next) => {
     try {
-      const data = await bannersService.update(req.params.id, req.body);
+      const data = await bannersService.update(
+        requiredUuidParam(req.params.id),
+        req.body,
+      );
       return success(res, data, 'Banner berhasil diperbarui');
     } catch (e) {
       next(e);
@@ -185,7 +295,7 @@ settingsRouter.delete(
   requirePermission(PERMISSIONS.USER_MANAGE),
   async (req, res, next) => {
     try {
-      await bannersService.remove(req.params.id);
+      await bannersService.remove(requiredUuidParam(req.params.id));
       return success(res, null, 'Banner berhasil dihapus');
     } catch (e) {
       next(e);
@@ -203,7 +313,7 @@ settingsRouter.post(
       if (!req.file) throw new AppError('File gambar wajib diunggah', 400);
       const user = (req as AuthedRequest).user;
       const data = await bannersService.uploadImage(
-        req.params.id,
+        requiredUuidParam(req.params.id),
         req.file,
         user?.id,
       );
@@ -220,7 +330,9 @@ settingsRouter.delete(
   requirePermission(PERMISSIONS.USER_MANAGE),
   async (req, res, next) => {
     try {
-      const data = await bannersService.clearImage(req.params.id);
+      const data = await bannersService.clearImage(
+        requiredUuidParam(req.params.id),
+      );
       return success(res, data, 'Gambar banner berhasil dihapus');
     } catch (e) {
       next(e);

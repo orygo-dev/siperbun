@@ -3,6 +3,7 @@ import { AppError } from '../utils/errors';
 import { verifyAccessToken } from '../utils/crypto';
 import { AuthedRequest } from '../utils/response';
 import { prisma } from '../config/database';
+import { ROLE_PERMISSIONS } from '@siperbun/shared';
 
 type TokenPayload = { sub: string; email: string };
 
@@ -39,9 +40,10 @@ export async function authenticate(
     const roles = user.userRoles.map((ur) => ur.role.slug);
     const permissions = [
       ...new Set(
-        user.userRoles.flatMap((ur) =>
-          ur.role.rolePermissions.map((rp) => rp.permission.key),
-        ),
+        user.userRoles.flatMap((ur) => [
+          ...ur.role.rolePermissions.map((rp) => rp.permission.key),
+          ...(ROLE_PERMISSIONS[ur.role.slug] ?? []),
+        ]),
       ),
     ];
 
@@ -75,6 +77,16 @@ export function requireAnyPermission(...perms: string[]) {
     if (req.user.roles.includes('SUPER_ADMIN')) return next();
     const ok = perms.some((p) => req.user!.permissions.includes(p));
     if (!ok) return next(new AppError('Forbidden', 403));
+    next();
+  };
+}
+
+export function requireRole(...roles: string[]) {
+  return (req: AuthedRequest, _res: Response, next: NextFunction) => {
+    if (!req.user) return next(new AppError('Unauthorized', 401));
+    if (!roles.some((role) => req.user!.roles.includes(role))) {
+      return next(new AppError('Forbidden', 403));
+    }
     next();
   };
 }

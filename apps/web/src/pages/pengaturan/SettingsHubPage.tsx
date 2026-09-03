@@ -1,11 +1,26 @@
-import { FileSearch, Image, Images, Leaf, MapPinned, Smartphone, Sprout, UserPlus, Users } from 'lucide-react';
+import { FileSearch, Image, Images, LayoutTemplate, Leaf, MapPinned, Smartphone, Sprout, UserPlus, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/common/PageHeader';
 import { PermissionGuard } from '../../components/common/PermissionGuard';
 import { useAuthStore } from '../../stores/authStore';
 import { PERMISSIONS } from '@siperbun/shared';
 
-const cards = [
+const cards: Array<{
+  to: string;
+  title: string;
+  description: string;
+  icon: typeof Users;
+  permission: string;
+  superAdminOnly?: boolean;
+}> = [
+  {
+    to: '/pengaturan/konten-portal',
+    title: 'Konten Portal',
+    description: 'Kelola landing page publik, layanan, visi, misi, dan kontak',
+    icon: LayoutTemplate,
+    permission: PERMISSIONS.USER_MANAGE,
+    superAdminOnly: true,
+  },
   {
     to: '/pengaturan/pengguna',
     title: 'Pengguna',
@@ -73,6 +88,7 @@ const cards = [
 
 export function SettingsHubPage() {
   const hasAny = useAuthStore((s) => s.hasAnyPermission);
+  const user = useAuthStore((s) => s.user);
 
   if (
     !hasAny(
@@ -95,7 +111,7 @@ export function SettingsHubPage() {
         subtitle="Konfigurasi master data dan pengguna sistem"
       />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => (
+        {cards.filter((card) => !card.superAdminOnly || user?.roles.includes('SUPER_ADMIN')).map((card) => (
           <PermissionGuard key={card.to} permission={card.permission}>
             <Link
               to={card.to}

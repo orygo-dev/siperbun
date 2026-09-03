@@ -4,6 +4,7 @@ import {
   loginSchema,
   profileUpdateSchema,
 } from '@siperbun/shared';
+import { ROLE_PERMISSIONS } from '@siperbun/shared';
 import { Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../config/database';
@@ -48,12 +49,13 @@ async function loadUserAuth(userId: string) {
   if (!user) throw new AppError('Unauthorized', 401);
 
   const roles = user.userRoles.map((ur) => ur.role.slug);
-  const permissions = [
-    ...new Set(
-      user.userRoles.flatMap((ur) =>
-        ur.role.rolePermissions.map((rp) => rp.permission.key),
+    const permissions = [
+      ...new Set(
+        user.userRoles.flatMap((ur) => [
+          ...ur.role.rolePermissions.map((rp) => rp.permission.key),
+          ...(ROLE_PERMISSIONS[ur.role.slug] ?? []),
+        ]),
       ),
-    ),
   ];
 
   return {

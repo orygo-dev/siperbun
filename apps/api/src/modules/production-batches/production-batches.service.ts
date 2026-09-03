@@ -7,6 +7,7 @@ import type {
 import { ProductionStatus, Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { type AccessUser, isProducerUser, requireProducerId } from '../../utils/access-scope';
 
 function toBigInt(n: number | null | undefined, fallback = 0n): bigint {
   if (n == null || Number.isNaN(n)) return fallback;
@@ -84,14 +85,18 @@ export const productionBatchesService = {
     producerId?: string;
     commodityId?: string;
     status?: string;
-  }) {
+  }, user: AccessUser) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
     const search = String(query.search ?? '').trim();
 
     const where: Prisma.ProductionBatchWhereInput = {
       deletedAt: null,
-      ...(query.producerId ? { producerId: query.producerId } : {}),
+      ...(isProducerUser(user)
+        ? { producerId: requireProducerId(user) }
+        : query.producerId
+          ? { producerId: query.producerId }
+          : {}),
       ...(query.commodityId ? { commodityId: query.commodityId } : {}),
       ...(query.status
         ? { status: query.status as ProductionStatus }
@@ -123,16 +128,25 @@ export const productionBatchesService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user?: AccessUser) {
     const item = await prisma.productionBatch.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(user && isProducerUser(user)
+          ? { producerId: requireProducerId(user) }
+          : {}),
+      },
       include: detailInclude,
     });
     if (!item) throw new AppError('Batch produksi tidak ditemukan', 404);
     return serializeBatch(item);
   },
 
-  async create(input: ProductionBatchCreateInput) {
+  async create(input: ProductionBatchCreateInput, user: AccessUser) {
+    if (isProducerUser(user) && input.producerId !== requireProducerId(user)) {
+      throw new AppError('Penangkar hanya dapat membuat batch sendiri', 403);
+    }
     const producer = await prisma.producer.findFirst({
       where: { id: input.producerId, deletedAt: null },
     });
@@ -178,11 +192,18 @@ export const productionBatchesService = {
     return serializeBatch(item);
   },
 
-  async update(id: string, input: ProductionBatchUpdateInput) {
+  async update(id: string, input: ProductionBatchUpdateInput, user: AccessUser) {
     const existing = await prisma.productionBatch.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(isProducerUser(user) ? { producerId: requireProducerId(user) } : {}),
+      },
     });
     if (!existing) throw new AppError('Batch produksi tidak ditemukan', 404);
+    if (isProducerUser(user) && input.producerId && input.producerId !== existing.producerId) {
+      throw new AppError('Penangkar tidak dapat mengubah pemilik batch', 403);
+    }
 
     if (input.batchNumber && input.batchNumber !== existing.batchNumber) {
       const dup = await prisma.productionBatch.findFirst({
@@ -262,9 +283,13 @@ export const productionBatchesService = {
     return { id };
   },
 
-  async addLog(id: string, input: ProductionLogCreateInput, userId: string) {
+  async addLog(id: string, input: ProductionLogCreateInput, user: AccessUser) {
     const existing = await prisma.productionBatch.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(isProducerUser(user) ? { producerId: requireProducerId(user) } : {}),
+      },
     });
     if (!existing) throw new AppError('Batch produksi tidak ditemukan', 404);
 
@@ -272,7 +297,7 @@ export const productionBatchesService = {
       await tx.productionLog.create({
         data: {
           batchId: id,
-          userId,
+          userId: user.id,
           loggedAt: input.loggedAt ? new Date(input.loggedAt) : new Date(),
           stage: input.stage,
           activity: input.activity,
@@ -319,9 +344,13 @@ export const productionBatchesService = {
     return serializeBatch(item);
   },
 
-  async changeStatus(id: string, input: ProductionStatusChangeInput) {
+  async changeStatus(id: string, input: ProductionStatusChangeInput, user: AccessUser) {
     const existing = await prisma.productionBatch.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(isProducerUser(user) ? { producerId: requireProducerId(user) } : {}),
+      },
     });
     if (!existing) throw new AppError('Batch produksi tidak ditemukan', 404);
 

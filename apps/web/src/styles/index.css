@@ -38,3 +38,18 @@ body {
   border-radius: 0.75rem;
   z-index: 0;
 }
+
+.portal-contours {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23d5e5dc' stroke-width='1'%3E%3Cpath d='M-20 180C34 121 82 221 132 158S229 73 270 119'/%3E%3Cpath d='M-25 198C27 137 83 237 142 173S231 96 270 136'/%3E%3Cpath d='M-22 215C32 155 91 251 151 190S234 119 270 153'/%3E%3Cpath d='M12 95C48 51 91 48 117 78s42 41 77 9 64-31 83-15'/%3E%3Cpath d='M3 78C44 30 94 27 126 61s42 36 72 8 59-33 78-20'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+.kalsel-map-tooltip {
+  border: 0;
+  border-radius: 0.5rem;
+  color: #15302a;
+  font-family: Manrope, system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  box-shadow: 0 8px 22px rgba(12, 74, 58, 0.12);
+}

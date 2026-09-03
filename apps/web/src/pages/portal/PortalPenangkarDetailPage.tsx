@@ -40,6 +40,24 @@ export function PortalPenangkarDetailPage() {
           {p.businessName}
         </h1>
         <p className="mt-2 text-sm text-slate-600">Pemilik: {p.ownerName}</p>
+        <div className="mt-4 grid gap-3 rounded-xl bg-emerald-50/60 p-4 text-sm text-slate-600 sm:grid-cols-2">
+          <div>
+            <span className="block text-[11px] font-bold uppercase tracking-wide text-emerald-800">Alamat kantor</span>
+            <span className="mt-1 block">{p.address || '—'}</span>
+          </div>
+          <div>
+            <span className="block text-[11px] font-bold uppercase tracking-wide text-emerald-800">Lokasi pembibitan</span>
+            <span className="mt-1 block">{p.nurseryAddress || '—'}</span>
+            <span className="mt-1 block text-xs text-slate-500">
+              Kabupaten: {p.nurseryKabupaten || '—'}
+            </span>
+            {p.landOwnershipStatus ? (
+              <span className="mt-1 block text-xs text-slate-500">
+                Status lahan: {p.landOwnershipStatus === 'RENTED' ? 'Sewa' : p.landOwnershipStatus === 'BORROWED' ? 'Pinjam pakai' : 'Milik sendiri'}
+              </span>
+            ) : null}
+          </div>
+        </div>
         <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600">
           <span className="inline-flex items-center gap-1.5">
             <MapPin size={14} />

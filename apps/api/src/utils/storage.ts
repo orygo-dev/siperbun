@@ -15,6 +15,41 @@ export const ALLOWED_MIME_TYPES = [
 
 export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 
+type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
+
+export function detectFileMimeType(buffer: Buffer): AllowedMimeType | null {
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return 'image/jpeg';
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer.subarray(0, 8).equals(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    )
+  ) {
+    return 'image/png';
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  if (
+    buffer.length >= 5 &&
+    buffer.subarray(0, 5).toString('ascii') === '%PDF-'
+  ) {
+    return 'application/pdf';
+  }
+  return null;
+}
+
 function mimeToExt(mime: string): string {
   switch (mime) {
     case 'image/jpeg':
@@ -31,13 +66,24 @@ function mimeToExt(mime: string): string {
 }
 
 export async function ensureStorageDir(...parts: string[]) {
-  const dir = path.resolve(process.cwd(), env.storagePath, ...parts);
+  const relativeDir = path.join(...parts);
+  const dir = resolveStoragePath(relativeDir);
   await fs.mkdir(dir, { recursive: true });
   return dir;
 }
 
 export function resolveStoragePath(relativePath: string) {
-  return path.resolve(process.cwd(), env.storagePath, relativePath);
+  const storageRoot = path.resolve(process.cwd(), env.storagePath);
+  const candidate = path.resolve(storageRoot, relativePath);
+  const relative = path.relative(storageRoot, candidate);
+  if (
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new AppError('Path penyimpanan tidak valid', 400);
+  }
+  return candidate;
 }
 
 export async function saveMulterFile(
@@ -50,7 +96,7 @@ export async function saveMulterFile(
     uploadedById?: string | null;
   },
 ) {
-  if (!ALLOWED_MIME_TYPES.includes(file.mimetype as (typeof ALLOWED_MIME_TYPES)[number])) {
+  if (!ALLOWED_MIME_TYPES.includes(file.mimetype as AllowedMimeType)) {
     throw new AppError(
       'Tipe file tidak diizinkan. Gunakan JPEG, PNG, WebP, atau PDF',
       400,
@@ -68,6 +114,11 @@ export async function saveMulterFile(
     throw new AppError('Ukuran file maksimal 10MB', 400);
   }
 
+  const detectedMimeType = detectFileMimeType(buffer);
+  if (!detectedMimeType || detectedMimeType !== file.mimetype) {
+    throw new AppError('Isi file tidak cocok dengan tipe file yang dikirim', 400);
+  }
+
   let relativeDir = opts.relativeDir;
   if (!relativeDir && opts.inspectionId) {
     const year = String(new Date().getFullYear());
@@ -77,8 +128,7 @@ export async function saveMulterFile(
     throw new AppError('Direktori penyimpanan wajib diisi', 500);
   }
 
-  const ext =
-    path.extname(file.originalname).toLowerCase() || mimeToExt(file.mimetype);
+  const ext = mimeToExt(detectedMimeType);
   const storageName = `${uuidv4()}${ext}`;
   const dir = await ensureStorageDir(relativeDir);
   const absolutePath = path.join(dir, storageName);
@@ -94,7 +144,7 @@ export async function saveMulterFile(
     data: {
       originalName: file.originalname,
       storageName,
-      mimeType: file.mimetype,
+      mimeType: detectedMimeType,
       size: BigInt(buffer.length),
       sha256,
       path: relativePath,

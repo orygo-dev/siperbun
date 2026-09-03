@@ -14,6 +14,7 @@ import {
 } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { type AccessUser, isInspectorUser, isProducerUser, requireProducerId } from '../../utils/access-scope';
 import {
   saveMulterFile,
   serializeStoredFile,
@@ -137,9 +138,13 @@ function serializeDetail(item: Record<string, unknown>) {
   };
 }
 
-async function assertEditable(id: string) {
+async function assertEditable(id: string, user: AccessUser) {
   const item = await prisma.fieldInspection.findFirst({
-    where: { id, deletedAt: null },
+    where: {
+      id,
+      deletedAt: null,
+      ...(isInspectorUser(user) ? { inspectorId: user.id } : {}),
+    },
   });
   if (!item) throw new AppError('Pemeriksaan tidak ditemukan', 404);
   if (item.isFinalized) {
@@ -158,14 +163,20 @@ export const fieldInspectionsService = {
     search?: string;
     inspectorId?: string;
     isFinalized?: string;
-  }) {
+  }, user: AccessUser) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
     const search = String(query.search ?? '').trim();
 
     const where: Prisma.FieldInspectionWhereInput = {
       deletedAt: null,
-      ...(query.inspectorId ? { inspectorId: query.inspectorId } : {}),
+      ...(isProducerUser(user)
+        ? { assignment: { application: { producerId: requireProducerId(user) } } }
+        : isInspectorUser(user)
+          ? { inspectorId: user.id }
+          : query.inspectorId
+            ? { inspectorId: query.inspectorId }
+            : {}),
       ...(query.isFinalized === 'true'
         ? { isFinalized: true }
         : query.isFinalized === 'false'
@@ -237,9 +248,17 @@ export const fieldInspectionsService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user?: AccessUser) {
     const item = await prisma.fieldInspection.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(user && isProducerUser(user)
+          ? { assignment: { application: { producerId: requireProducerId(user) } } }
+          : user && isInspectorUser(user)
+            ? { inspectorId: user.id }
+            : {}),
+      },
       include: detailInclude,
     });
     if (!item) throw new AppError('Pemeriksaan tidak ditemukan', 404);
@@ -317,11 +336,11 @@ export const fieldInspectionsService = {
     return this.getById(created.id);
   },
 
-  async update(id: string, input: FieldInspectionUpdateInput) {
-    await assertEditable(id);
+  async update(id: string, input: FieldInspectionUpdateInput, user: AccessUser) {
+    await assertEditable(id, user);
 
     if (input.results?.length) {
-      await this.upsertResults(id, { results: input.results });
+      await this.upsertResults(id, { results: input.results }, user);
     }
 
     const item = await prisma.fieldInspection.update({
@@ -371,8 +390,8 @@ export const fieldInspectionsService = {
     return serializeDetail(item as unknown as Record<string, unknown>);
   },
 
-  async upsertResults(id: string, input: InspectionResultsUpsertInput) {
-    await assertEditable(id);
+  async upsertResults(id: string, input: InspectionResultsUpsertInput, user: AccessUser) {
+    await assertEditable(id, user);
 
     await prisma.$transaction(
       input.results.map((r) =>
@@ -406,8 +425,9 @@ export const fieldInspectionsService = {
     id: string,
     file: Express.Multer.File,
     opts: { caption?: string | null; uploadedById: string },
+    user: AccessUser,
   ) {
-    await assertEditable(id);
+    await assertEditable(id, user);
 
     const stored = await saveMulterFile(file, {
       inspectionId: id,
@@ -430,9 +450,9 @@ export const fieldInspectionsService = {
   async addFinding(
     id: string,
     input: InspectionFindingCreateInput,
-    _userId: string,
+    user: AccessUser,
   ) {
-    const inspection = await assertEditable(id);
+    const inspection = await assertEditable(id, user);
     const assignment = await prisma.fieldAssignment.findFirst({
       where: { id: inspection.assignmentId },
     });
@@ -456,9 +476,9 @@ export const fieldInspectionsService = {
   async finalize(
     id: string,
     input: FinalizeInspectionInput,
-    user: { id: string },
+    user: AccessUser,
   ) {
-    const inspection = await assertEditable(id);
+    const inspection = await assertEditable(id, user);
     const assignment = await prisma.fieldAssignment.findFirst({
       where: { id: inspection.assignmentId },
       include: { application: true },

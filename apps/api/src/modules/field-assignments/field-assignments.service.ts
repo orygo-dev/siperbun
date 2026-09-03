@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { type AccessUser, isProducerUser, requireProducerId } from '../../utils/access-scope';
 
 function toBigIntOrNull(v: number | null | undefined) {
   if (v == null) return null;
@@ -145,7 +146,7 @@ export const fieldAssignmentsService = {
       dateFrom?: string;
       dateTo?: string;
     },
-    user: { id: string; roles: string[]; permissions: string[] },
+    user: AccessUser,
   ) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
@@ -158,6 +159,9 @@ export const fieldAssignmentsService = {
 
     const where: Prisma.FieldAssignmentWhereInput = {
       deletedAt: null,
+      ...(isProducerUser(user)
+        ? { application: { producerId: requireProducerId(user) } }
+        : {}),
       ...(inspectorId ? { inspectorId } : {}),
       ...(query.status
         ? { status: query.status as PrismaAssignStatus }
@@ -208,9 +212,17 @@ export const fieldAssignmentsService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user?: AccessUser) {
     const item = await prisma.fieldAssignment.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(user && isProducerUser(user)
+          ? { application: { producerId: requireProducerId(user) } }
+          : user && isPbtScoped(user)
+            ? { inspectorId: user.id }
+            : {}),
+      },
       include: detailInclude,
     });
     if (!item) throw new AppError('Penugasan tidak ditemukan', 404);

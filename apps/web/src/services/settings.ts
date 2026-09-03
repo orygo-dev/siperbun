@@ -26,6 +26,59 @@ export type DashboardBanner = {
   updatedAt: string;
 };
 
+export type PortalContent = {
+  hero: {
+    enabled: boolean;
+    title: string;
+    description: string;
+    primaryLabel: string;
+    primaryLink: string;
+    secondaryLabel: string;
+    secondaryLink: string;
+  };
+  profile: {
+    enabled: boolean;
+    title: string;
+    body: string;
+    secondaryBody: string;
+    responsibilities: string[];
+  };
+  services: {
+    enabled: boolean;
+    title: string;
+    intro: string;
+    items: Array<{ title: string; description: string; link: string }>;
+  };
+  visionMission: {
+    enabled: boolean;
+    vision: string;
+    missions: string[];
+  };
+  map: { enabled: boolean; title: string; description: string };
+  contact: {
+    enabled: boolean;
+    title: string;
+    primaryLabel: string;
+    primaryLink: string;
+    secondaryLabel: string;
+    secondaryLink: string;
+    address: string;
+    hours: string;
+    phone: string;
+    email: string;
+  };
+};
+
+export type PortalContentResponse = {
+  content: PortalContent;
+  media: {
+    heroImageUrl: string | null;
+    serviceImageUrl: string | null;
+  };
+};
+
+export type PortalMediaSlot = 'hero' | 'service';
+
 const API_BASE =
   import.meta.env.VITE_API_URL?.replace(/\/api\/v1\/?$/, '') ||
   'http://localhost:3000';
@@ -56,6 +109,26 @@ export const settingsApi = {
   },
   clearLogo: () =>
     api.delete<ApiResponse<Branding>>('/settings/branding/logo'),
+
+  getPortalContent: () =>
+    api.get<ApiResponse<PortalContentResponse>>('/settings/portal-content'),
+  updatePortalContent: (payload: PortalContent) =>
+    api.put<ApiResponse<PortalContentResponse>>(
+      '/settings/portal-content',
+      payload,
+    ),
+  uploadPortalMedia: (slot: PortalMediaSlot, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post<ApiResponse<PortalContentResponse>>(
+      `/settings/portal-content/media/${slot}`,
+      form,
+    );
+  },
+  clearPortalMedia: (slot: PortalMediaSlot) =>
+    api.delete<ApiResponse<PortalContentResponse>>(
+      `/settings/portal-content/media/${slot}`,
+    ),
 
   listBanners: (placement?: BannerPlacement) =>
     api.get<ApiResponse<DashboardBanner[]>>('/settings/banners', {

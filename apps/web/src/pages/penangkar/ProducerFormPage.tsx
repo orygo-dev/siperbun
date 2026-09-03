@@ -70,7 +70,10 @@ export function ProducerFormPage({ mode }: { mode: 'create' | 'edit' }) {
         phone: d.phone ?? '',
         email: d.email ?? '',
         address: d.address ?? '',
+        nurseryAddress: d.nurseryAddress ?? '',
+        landOwnershipStatus: d.landOwnershipStatus ?? null,
         kabupatenId: d.kabupatenId ?? '',
+        nurseryKabupatenId: d.nurseries?.[0]?.region?.id ?? '',
         kecamatan: d.kecamatan ?? '',
         desa: d.desa ?? '',
         latitude: d.latitude ?? null,
@@ -187,7 +190,7 @@ export function ProducerFormPage({ mode }: { mode: 'create' | 'edit' }) {
           {field('nib', 'NIB')}
           {field('phone', 'Telepon')}
           {field('email', 'Email', { type: 'email' })}
-          {field('kabupatenId', 'Kabupaten', {
+          {field('kabupatenId', 'Kabupaten Kantor', {
             as: 'select',
             options: (regionsQuery.data ?? []).map((r) => ({
               value: r.id,
@@ -200,7 +203,27 @@ export function ProducerFormPage({ mode }: { mode: 'create' | 'edit' }) {
           {field('latitude', 'Latitude', { type: 'number' })}
           {field('longitude', 'Longitude', { type: 'number' })}
         </div>
-        <div className="mt-4">{field('address', 'Alamat', { as: 'textarea' })}</div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {field('address', 'Alamat Kantor', { as: 'textarea' })}
+          {field('nurseryAddress', 'Alamat Lokasi Pembibitan', { as: 'textarea' })}
+        </div>
+        <div className="mt-4 max-w-md">
+          {field('landOwnershipStatus', 'Status Kepemilikan Lahan Pembibitan', {
+            as: 'select',
+            options: [
+              { value: 'RENTED', label: 'Sewa' },
+              { value: 'BORROWED', label: 'Pinjam pakai' },
+              { value: 'OWNED', label: 'Milik sendiri' },
+            ],
+          })}
+          {field('nurseryKabupatenId', 'Kabupaten Lokasi Pembibitan', {
+            as: 'select',
+            options: (regionsQuery.data ?? []).map((r) => ({
+              value: r.id,
+              label: r.name,
+            })),
+          })}
+        </div>
         <div className="mt-4">{field('notes', 'Catatan', { as: 'textarea' })}</div>
 
         <div className="mt-6 flex justify-end gap-2">

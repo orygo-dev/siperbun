@@ -17,6 +17,12 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { AuthedRequest, success } from '../../utils/response';
 import {
+  AccessUser,
+  isInspectorUser,
+  isProducerUser,
+  requireProducerId,
+} from '../../utils/access-scope';
+import {
   saveMulterFile,
   serializeStoredFile,
 } from '../../utils/storage';
@@ -24,6 +30,18 @@ import {
 export const findingsRouter = Router();
 
 findingsRouter.use(authenticate);
+
+function findingAccessWhere(
+  user: AccessUser,
+): Prisma.InspectionFindingWhereInput {
+  if (isProducerUser(user)) {
+    return { application: { producerId: requireProducerId(user) } };
+  }
+  if (isInspectorUser(user)) {
+    return { inspection: { inspectorId: user.id } };
+  }
+  return {};
+}
 
 function serializeFinding<T extends Record<string, unknown>>(item: T) {
   const row = item as T & {
@@ -83,12 +101,14 @@ findingsRouter.get(
   requirePermission(PERMISSIONS.INSPECTION_VIEW),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const page = Math.max(1, Number(req.query.page ?? 1));
       const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 10)));
       const search = String(req.query.search ?? '').trim();
 
       const where: Prisma.InspectionFindingWhereInput = {
         deletedAt: null,
+        AND: [findingAccessWhere(user)],
         ...(req.query.status
           ? { status: req.query.status as FindingStatus }
           : {}),
@@ -142,8 +162,13 @@ findingsRouter.get(
   requirePermission(PERMISSIONS.INSPECTION_VIEW),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const item = await prisma.inspectionFinding.findFirst({
-        where: { id: String(req.params.id), deletedAt: null },
+        where: {
+          id: String(req.params.id),
+          deletedAt: null,
+          AND: [findingAccessWhere(user)],
+        },
         include: detailInclude,
       });
       if (!item) throw new AppError('Temuan tidak ditemukan', 404);
@@ -167,8 +192,13 @@ findingsRouter.put(
   validateBody(findingUpdateSchema),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const existing = await prisma.inspectionFinding.findFirst({
-        where: { id: String(req.params.id), deletedAt: null },
+        where: {
+          id: String(req.params.id),
+          deletedAt: null,
+          AND: [findingAccessWhere(user)],
+        },
       });
       if (!existing) throw new AppError('Temuan tidak ditemukan', 404);
 
@@ -245,7 +275,11 @@ findingsRouter.post(
     try {
       const user = (req as AuthedRequest).user!;
       const finding = await prisma.inspectionFinding.findFirst({
-        where: { id: String(req.params.id), deletedAt: null },
+        where: {
+          id: String(req.params.id),
+          deletedAt: null,
+          AND: [findingAccessWhere(user)],
+        },
       });
       if (!finding) throw new AppError('Temuan tidak ditemukan', 404);
 
@@ -308,8 +342,13 @@ findingsRouter.post(
   validateBody(verifyCorrectiveActionSchema),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const finding = await prisma.inspectionFinding.findFirst({
-        where: { id: String(req.params.id), deletedAt: null },
+        where: {
+          id: String(req.params.id),
+          deletedAt: null,
+          AND: [findingAccessWhere(user)],
+        },
       });
       if (!finding) throw new AppError('Temuan tidak ditemukan', 404);
 

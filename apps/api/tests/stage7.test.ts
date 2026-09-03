@@ -1,10 +1,30 @@
-import { REFRESH_COOKIE_NAME } from '@siperbun/shared';
+import {
+  APPLICATION_DOCUMENT_TITLES,
+  REFRESH_COOKIE_NAME,
+} from '@siperbun/shared';
 import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
 import { prisma } from '../src/config/database';
 
 const app = createApp();
+
+async function uploadRequiredDocuments(
+  applicationId: string,
+  token: string,
+) {
+  for (const title of APPLICATION_DOCUMENT_TITLES) {
+    const response = await request(app)
+      .post(`/api/v1/certification-applications/${applicationId}/documents`)
+      .set('Authorization', `Bearer ${token}`)
+      .field('title', title)
+      .attach('file', Buffer.from('%PDF-1.4 test document'), {
+        filename: 'persyaratan.pdf',
+        contentType: 'application/pdf',
+      });
+    expect(response.status).toBe(201);
+  }
+}
 
 async function login(email: string) {
   const res = await request(app).post('/api/v1/auth/login').send({
@@ -149,6 +169,8 @@ describe('Stage 7 — Auth refresh, dashboard, permissions, producer, app verify
     expect(create.status).toBe(201);
     expect(create.body.data.status).toBe('DRAFT');
     const appId = create.body.data.id as string;
+
+    await uploadRequiredDocuments(appId, adminToken);
 
     const submit = await request(app)
       .post(`/api/v1/certification-applications/${appId}/submit`)

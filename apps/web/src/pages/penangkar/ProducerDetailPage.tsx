@@ -1,6 +1,7 @@
 import { PERMISSIONS } from '@siperbun/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
+import { Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { ErrorState } from '../../components/common/ErrorState';
 import { LoadingState } from '../../components/common/LoadingState';
@@ -47,6 +48,27 @@ export function ProducerDetailPage() {
   }
 
   const p = query.data;
+  const ownershipLabel = p.landOwnershipStatus === 'RENTED'
+    ? 'Sewa'
+    : p.landOwnershipStatus === 'BORROWED'
+      ? 'Pinjam pakai'
+      : p.landOwnershipStatus === 'OWNED'
+        ? 'Milik sendiri'
+        : null;
+
+  const downloadDocument = async (file: { id: string; originalName: string }) => {
+    try {
+      const response = await producersApi.downloadFile(file.id);
+      const url = URL.createObjectURL(response.data);
+      const anchor = window.document.createElement('a');
+      anchor.href = url;
+      anchor.download = file.originalName;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Dokumen gagal diunduh');
+    }
+  };
 
   const row = (label: string, value?: string | number | null) => (
     <div className="border-b border-border py-2.5 sm:grid sm:grid-cols-3 sm:gap-4">
@@ -126,10 +148,13 @@ export function ProducerDetailPage() {
             {row('NIB', p.nib)}
             {row('Telepon', p.phone)}
             {row('Email', p.email)}
-            {row('Kabupaten', p.kabupaten?.name)}
+            {row('Kabupaten Kantor', p.kabupaten?.name)}
             {row('Kecamatan', p.kecamatan)}
             {row('Desa', p.desa)}
-            {row('Alamat', p.address)}
+            {row('Alamat Kantor', p.address)}
+            {row('Alamat Lokasi Pembibitan', p.nurseryAddress)}
+            {row('Kabupaten Lokasi Pembibitan', p.nurseries?.[0]?.region?.name)}
+            {row('Status Kepemilikan Lahan', ownershipLabel)}
             {row(
               'Kapasitas Produksi',
               p.productionCapacity != null
@@ -155,6 +180,27 @@ export function ProducerDetailPage() {
                     >
                       {n.name}
                     </Link>
+                    {n.address ? <p className="mt-0.5 text-xs text-slate-500">{n.address}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
+            <h3 className="mb-3 text-sm font-semibold">Dokumen Penangkar</h3>
+            {(p.documents ?? []).length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)]">Belum ada dokumen</p>
+            ) : (
+              <ul className="space-y-2">
+                {p.documents!.map((document) => (
+                  <li key={document.id} className="flex items-center gap-2 rounded-lg border border-border p-2">
+                    <FileText className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1 truncate text-xs">{document.title}</span>
+                    {document.file ? (
+                      <button type="button" aria-label={`Unduh ${document.title}`} onClick={() => downloadDocument(document.file!)} className="rounded p-1.5 text-slate-500 hover:bg-slate-100">
+                        <Download size={14} />
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>

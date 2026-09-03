@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { type AccessUser, isInspectorUser, isProducerUser, requireProducerId } from '../../utils/access-scope';
 import { writeAudit } from '../../utils/audit';
 import {
   saveCertificateScanFile,
@@ -20,7 +21,7 @@ import {
 } from '../../utils/storage';
 
 const CREATABLE_APP_STATUSES: ApplicationStatus[] = [
-  ApplicationStatus.INSPECTION_PASSED,
+  ApplicationStatus.PAYMENT_VERIFIED,
   ApplicationStatus.CERTIFICATE_ISSUED_MANUALLY,
 ];
 
@@ -182,7 +183,7 @@ async function ensureIssuedScanReady(
   notes?: string | null,
 ) {
   const steps: Array<{ to: ApplicationStatus; notes?: string | null }> = [];
-  if (appStatus === ApplicationStatus.INSPECTION_PASSED) {
+  if (appStatus === ApplicationStatus.PAYMENT_VERIFIED) {
     steps.push({
       to: ApplicationStatus.CERTIFICATE_ISSUED_MANUALLY,
       notes: notes ?? 'Sertifikat diterbitkan manual',
@@ -209,14 +210,20 @@ export const certificatesService = {
     search?: string;
     status?: string;
     producerId?: string;
-  }) {
+  }, user: AccessUser) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
     const search = String(query.search ?? '').trim();
 
     const where: Prisma.CertificateWhereInput = {
       deletedAt: null,
-      ...(query.producerId ? { producerId: query.producerId } : {}),
+      ...(isProducerUser(user)
+        ? { producerId: requireProducerId(user) }
+        : isInspectorUser(user)
+          ? { application: { assignments: { some: { inspectorId: user.id, deletedAt: null } } } }
+          : query.producerId
+            ? { producerId: query.producerId }
+            : {}),
       ...(query.status
         ? { status: query.status as CertificateStatus }
         : {}),
@@ -247,9 +254,17 @@ export const certificatesService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user?: AccessUser) {
     const item = await prisma.certificate.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(user && isProducerUser(user)
+          ? { producerId: requireProducerId(user) }
+          : user && isInspectorUser(user)
+            ? { application: { assignments: { some: { inspectorId: user.id, deletedAt: null } } } }
+            : {}),
+      },
       include: detailInclude,
     });
     if (!item) throw new AppError('Sertifikat tidak ditemukan', 404);
@@ -264,7 +279,7 @@ export const certificatesService = {
 
     if (!CREATABLE_APP_STATUSES.includes(application.status)) {
       throw new AppError(
-        'Sertifikat hanya dapat dibuat untuk pengajuan yang lulus pemeriksaan',
+        'Sertifikat hanya dapat dibuat setelah pemeriksaan lulus dan pembayaran lunas',
         400,
       );
     }
@@ -683,9 +698,17 @@ export const certificatesService = {
     return serializeCertificate(item);
   },
 
-  async getDownloadFile(id: string) {
+  async getDownloadFile(id: string, user: AccessUser) {
     const cert = await prisma.certificate.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(isProducerUser(user)
+          ? { producerId: requireProducerId(user) }
+          : isInspectorUser(user)
+            ? { application: { assignments: { some: { inspectorId: user.id, deletedAt: null } } } }
+            : {}),
+      },
       include: { currentFile: true },
     });
     if (!cert) throw new AppError('Sertifikat tidak ditemukan', 404);

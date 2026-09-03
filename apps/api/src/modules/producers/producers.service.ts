@@ -116,6 +116,7 @@ export const producersService = {
         kabupaten: true,
         nurseries: {
           where: { deletedAt: null },
+          orderBy: { createdAt: 'asc' },
           take: 50,
           select: {
             id: true,
@@ -123,6 +124,22 @@ export const producersService = {
             status: true,
             capacity: true,
             areaHa: true,
+            address: true,
+            landOwnershipStatus: true,
+            region: { select: { id: true, name: true, code: true } },
+          },
+        },
+        documents: {
+          where: { deletedAt: null, fileId: { not: null } },
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            kind: true,
+            title: true,
+            notes: true,
+            file: {
+              select: { id: true, originalName: true, mimeType: true, size: true },
+            },
           },
         },
         seedGardens: {
@@ -150,6 +167,16 @@ export const producersService = {
         ...g,
         areaHa: g.areaHa != null ? Number(g.areaHa) : null,
       })),
+      documents: item.documents.map((document) => ({
+        ...document,
+        file: document.file
+          ? {
+              ...document.file,
+              size: Number(document.file.size),
+              url: `/api/v1/files/${document.file.id}`,
+            }
+          : null,
+      })),
     };
   },
 
@@ -175,6 +202,8 @@ export const producersService = {
         phone: input.phone ?? null,
         email: input.email ?? null,
         address: input.address ?? null,
+        nurseryAddress: input.nurseryAddress ?? null,
+        landOwnershipStatus: input.landOwnershipStatus ?? null,
         kabupatenId: input.kabupatenId ?? null,
         kecamatan: input.kecamatan ?? null,
         desa: input.desa ?? null,
@@ -187,6 +216,19 @@ export const producersService = {
         status: (input.status as ProducerStatus) ?? ProducerStatus.PENDING_VERIFICATION,
         isActive: input.isActive ?? true,
         notes: input.notes ?? null,
+        ...(input.nurseryAddress
+          ? {
+              nurseries: {
+                create: {
+                  name: `Lokasi Pembibitan ${input.businessName}`,
+                  address: input.nurseryAddress,
+                  regionId: input.nurseryKabupatenId ?? null,
+                  landOwnershipStatus: input.landOwnershipStatus ?? null,
+                  status: 'ACTIVE',
+                },
+              },
+            }
+          : {}),
       },
       include: {
         kabupaten: { select: { id: true, name: true, code: true } },
@@ -227,6 +269,12 @@ export const producersService = {
         ...(input.phone !== undefined ? { phone: input.phone } : {}),
         ...(input.email !== undefined ? { email: input.email } : {}),
         ...(input.address !== undefined ? { address: input.address } : {}),
+        ...(input.nurseryAddress !== undefined
+          ? { nurseryAddress: input.nurseryAddress }
+          : {}),
+        ...(input.landOwnershipStatus !== undefined
+          ? { landOwnershipStatus: input.landOwnershipStatus }
+          : {}),
         ...(input.kabupatenId !== undefined ? { kabupatenId: input.kabupatenId } : {}),
         ...(input.kecamatan !== undefined ? { kecamatan: input.kecamatan } : {}),
         ...(input.desa !== undefined ? { desa: input.desa } : {}),
@@ -248,6 +296,45 @@ export const producersService = {
         kabupaten: { select: { id: true, name: true, code: true } },
       },
     });
+
+    if (
+      input.nurseryAddress !== undefined ||
+      input.nurseryKabupatenId !== undefined ||
+      input.landOwnershipStatus !== undefined
+    ) {
+      const nursery = await prisma.nurseryLocation.findFirst({
+        where: { producerId: id, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      if (nursery) {
+        await prisma.nurseryLocation.update({
+          where: { id: nursery.id },
+          data: {
+            ...(input.nurseryAddress !== undefined
+              ? { address: input.nurseryAddress }
+              : {}),
+            ...(input.nurseryKabupatenId !== undefined
+              ? { regionId: input.nurseryKabupatenId }
+              : {}),
+            ...(input.landOwnershipStatus !== undefined
+              ? { landOwnershipStatus: input.landOwnershipStatus }
+              : {}),
+          },
+        });
+      } else if (input.nurseryAddress) {
+        await prisma.nurseryLocation.create({
+          data: {
+            producerId: id,
+            name: `Lokasi Pembibitan ${item.businessName}`,
+            address: input.nurseryAddress,
+            regionId: input.nurseryKabupatenId ?? null,
+            landOwnershipStatus: input.landOwnershipStatus ?? null,
+            status: 'ACTIVE',
+          },
+        });
+      }
+    }
 
     return serializeProducer(item);
   },

@@ -883,7 +883,8 @@ async function main() {
       },
       {
         key: 'app.officeName',
-        value: 'Dinas Perkebunan Provinsi Kalimantan Selatan',
+        value:
+          'UPTD Balai Pengawasan Sertifikasi Benih dan Proteksi Tanaman Perkebunan Provinsi Kalimantan Selatan',
       },
       { key: 'app.logoFileId', value: '' },
     ],

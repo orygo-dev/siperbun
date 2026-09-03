@@ -3,11 +3,67 @@ import type {
   PublicListingCreateInput,
   PublicListingUpdateInput,
 } from '@siperbun/shared';
+import { ROLES } from '@siperbun/shared';
 import fs from 'fs';
 import path from 'path';
 import { prisma } from '../../config/database';
+import { hashPassword } from '../../utils/crypto';
 import { AppError } from '../../utils/errors';
 import { resolveStoragePath, saveMulterFile } from '../../utils/storage';
+
+const registrationDocumentDefinitions = {
+  businessLicense: {
+    kind: 'BUSINESS_LICENSE',
+    title: 'Sertifikat standar / izin usaha pembibitan benih',
+  },
+  landOwnershipProof: {
+    kind: 'LAND_OWNERSHIP_PROOF',
+    title: 'Bukti kepemilikan lahan pembibitan',
+  },
+  nurseryPhoto: { kind: 'NURSERY_PHOTO', title: 'Foto lahan pembibitan' },
+  facilitiesPhoto: {
+    kind: 'FACILITIES_PHOTO',
+    title: 'Foto sarana dan prasarana pembibitan',
+  },
+  sourceAgreement: {
+    kind: 'SOURCE_AGREEMENT',
+    title: 'SPK dengan perusahaan sumber benih',
+  },
+  waterSourcePhoto: {
+    kind: 'WATER_SOURCE_PHOTO',
+    title: 'Foto sumber air',
+  },
+  businessRecommendation: {
+    kind: 'BUSINESS_RECOMMENDATION',
+    title: 'Rekomendasi izin usaha benih',
+  },
+  expertCertificate: {
+    kind: 'EXPERT_CERTIFICATE',
+    title: 'Surat / sertifikat tenaga ahli',
+  },
+  workforceList: { kind: 'WORKFORCE_LIST', title: 'Daftar tenaga kerja' },
+} as const;
+
+type RegistrationFileField = keyof typeof registrationDocumentDefinitions;
+type RegistrationFiles = Partial<Record<RegistrationFileField, Express.Multer.File>>;
+
+const photoRegistrationFields = new Set<RegistrationFileField>([
+  'nurseryPhoto',
+  'facilitiesPhoto',
+  'waterSourcePhoto',
+]);
+
+const producerDocumentKinds = {
+  BUSINESS_LICENSE: 'SIUP',
+  LAND_OWNERSHIP_PROOF: 'SURAT_TANAH',
+  NURSERY_PHOTO: 'FOTO',
+  FACILITIES_PHOTO: 'FOTO',
+  SOURCE_AGREEMENT: 'LAINNYA',
+  WATER_SOURCE_PHOTO: 'FOTO',
+  BUSINESS_RECOMMENDATION: 'SERTIFIKAT',
+  EXPERT_CERTIFICATE: 'SERTIFIKAT',
+  WORKFORCE_LIST: 'LAINNYA',
+} as const;
 
 function toNum(v: unknown): number | null {
   if (v == null) return null;
@@ -141,6 +197,90 @@ export const publicService = {
     });
   },
 
+  async getMapSummary(commodityId?: string) {
+    const listingWhere = {
+      deletedAt: null,
+      status: 'PUBLISHED' as const,
+      ...(commodityId ? { commodityId } : {}),
+    };
+    const [regions, producers] = await Promise.all([
+      prisma.region.findMany({
+        where: { type: 'KABUPATEN', deletedAt: null },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, code: true },
+      }),
+      prisma.producer.findMany({
+        where: {
+          deletedAt: null,
+          isActive: true,
+          status: { in: ['ACTIVE', 'VERIFIED'] },
+          publicListings: { some: listingWhere },
+        },
+        select: {
+          id: true,
+          businessName: true,
+          latitude: true,
+          longitude: true,
+          kabupaten: { select: { id: true, name: true } },
+          nurseries: {
+            where: {
+              deletedAt: null,
+              latitude: { not: null },
+              longitude: { not: null },
+            },
+            orderBy: { createdAt: 'asc' },
+            take: 1,
+            select: { latitude: true, longitude: true },
+          },
+          publicListings: {
+            where: listingWhere,
+            select: { commodity: { select: { id: true, name: true } } },
+          },
+        },
+      }),
+    ]);
+
+    const markers = producers.flatMap((producer) => {
+      const fallback = producer.nurseries[0];
+      const latitude = toNum(producer.latitude) ?? toNum(fallback?.latitude);
+      const longitude = toNum(producer.longitude) ?? toNum(fallback?.longitude);
+      if (latitude == null || longitude == null) return [];
+      const commodities = [
+        ...new Map(
+          producer.publicListings.map((listing) => [
+            listing.commodity.id,
+            listing.commodity,
+          ]),
+        ).values(),
+      ];
+      return [{
+        id: producer.id,
+        businessName: producer.businessName,
+        latitude,
+        longitude,
+        kabupaten: producer.kabupaten,
+        commodities,
+      }];
+    });
+
+    const countByRegion = new Map<string, number>();
+    for (const marker of markers) {
+      if (!marker.kabupaten) continue;
+      countByRegion.set(
+        marker.kabupaten.id,
+        (countByRegion.get(marker.kabupaten.id) ?? 0) + 1,
+      );
+    }
+
+    return {
+      districts: regions.map((region) => ({
+        ...region,
+        producerCount: countByRegion.get(region.id) ?? 0,
+      })),
+      markers,
+    };
+  },
+
   async listListings(query: {
     search?: string;
     commodityId?: string;
@@ -262,6 +402,7 @@ export const publicService = {
         kabupaten: { select: { id: true, name: true } },
         nurseries: {
           where: { deletedAt: null, status: 'ACTIVE' },
+          orderBy: { createdAt: 'asc' },
           select: {
             id: true,
             name: true,
@@ -339,6 +480,7 @@ export const publicService = {
             id: true,
             name: true,
             address: true,
+            region: { select: { id: true, name: true } },
             latitude: true,
             longitude: true,
           },
@@ -359,6 +501,9 @@ export const publicService = {
       phone: p.phone,
       email: p.email,
       address: p.address,
+      nurseryAddress: p.nurseryAddress,
+      nurseryKabupaten: p.nurseries[0]?.region?.name ?? null,
+      landOwnershipStatus: p.landOwnershipStatus,
       kabupaten: p.kabupaten?.name ?? null,
       kecamatan: p.kecamatan,
       desa: p.desa,
@@ -368,6 +513,7 @@ export const publicService = {
         id: n.id,
         name: n.name,
         address: n.address,
+        kabupaten: n.region?.name ?? null,
         latitude: toNum(n.latitude),
         longitude: toNum(n.longitude),
       })),
@@ -375,29 +521,103 @@ export const publicService = {
     };
   },
 
-  async submitRegistration(input: ProducerRegistrationInput) {
+  async submitRegistration(
+    input: ProducerRegistrationInput,
+    files: RegistrationFiles,
+  ) {
+    const missingFiles = Object.keys(registrationDocumentDefinitions).filter(
+      (field) => !files[field as RegistrationFileField],
+    );
+    if (missingFiles.length > 0) {
+      throw new AppError('Seluruh dokumen dan foto pendaftaran wajib diunggah', 422);
+    }
+
+    for (const field of photoRegistrationFields) {
+      const file = files[field]!;
+      if (!file.mimetype.startsWith('image/')) {
+        throw new AppError(`${registrationDocumentDefinitions[field].title} wajib berupa gambar`, 422);
+      }
+    }
+
+    const email = input.email.trim().toLowerCase();
+    const [existingUser, existingRequest, officeKabupaten, nurseryKabupaten] = await Promise.all([
+      prisma.user.findFirst({ where: { email, deletedAt: null }, select: { id: true } }),
+      prisma.producerRegistrationRequest.findFirst({
+        where: { email, status: { not: 'REJECTED' } },
+        select: { id: true },
+      }),
+      prisma.region.findFirst({
+        where: { id: input.kabupatenId, type: 'KABUPATEN', deletedAt: null },
+        select: { id: true },
+      }),
+      prisma.region.findFirst({
+        where: { id: input.nurseryKabupatenId, type: 'KABUPATEN', deletedAt: null },
+        select: { id: true },
+      }),
+    ]);
+    if (existingUser || existingRequest) {
+      throw new AppError('Email sudah digunakan atau masih dalam proses pendaftaran', 409);
+    }
+    if (!officeKabupaten) throw new AppError('Kabupaten kantor tidak valid', 422);
+    if (!nurseryKabupaten) {
+      throw new AppError('Kabupaten lokasi pembibitan tidak valid', 422);
+    }
+
+    const passwordHash = await hashPassword(input.password);
     const row = await prisma.producerRegistrationRequest.create({
       data: {
-        businessName: input.businessName.trim(),
-        ownerName: input.ownerName.trim(),
-        nik: input.nik ?? null,
+        businessName: input.organizationName.trim(),
+        ownerName: input.producerName.trim(),
         phone: input.phone.trim(),
-        email: input.email ?? null,
-        address: input.address ?? null,
-        kabupatenId: input.kabupatenId ?? null,
-        kecamatan: input.kecamatan ?? null,
-        desa: input.desa ?? null,
-        latitude: input.latitude ?? null,
-        longitude: input.longitude ?? null,
-        commodityInterest: input.commodityInterest ?? null,
-        notes: input.notes ?? null,
+        email,
+        passwordHash,
+        address: input.officeAddress.trim(),
+        kabupatenId: input.kabupatenId,
+        nurseryAddress: input.nurseryAddress.trim(),
+        nurseryKabupatenId: input.nurseryKabupatenId,
+        landOwnershipStatus: input.landOwnershipStatus,
       },
     });
+
+    const storedFiles: Array<{ id: string; path: string }> = [];
+    try {
+      for (const [field, definition] of Object.entries(
+        registrationDocumentDefinitions,
+      ) as Array<[
+        RegistrationFileField,
+        (typeof registrationDocumentDefinitions)[RegistrationFileField],
+      ]>) {
+        const stored = await saveMulterFile(files[field]!, {
+          relativeDir: path.join(
+            'registrations',
+            String(new Date().getFullYear()),
+            row.id,
+          ),
+        });
+        storedFiles.push({ id: stored.id, path: stored.path });
+        await prisma.producerRegistrationDocument.create({
+          data: {
+            registrationId: row.id,
+            kind: definition.kind,
+            title: definition.title,
+            fileId: stored.id,
+          },
+        });
+      }
+    } catch (error) {
+      await prisma.producerRegistrationRequest.delete({ where: { id: row.id } });
+      for (const stored of storedFiles) {
+        await fs.promises.unlink(resolveStoragePath(stored.path)).catch(() => undefined);
+        await prisma.storedFile.delete({ where: { id: stored.id } }).catch(() => undefined);
+      }
+      throw error;
+    }
+
     return {
       id: row.id,
       status: row.status,
       message:
-        'Pendaftaran diterima. Tim dinas akan meninjau dan menghubungi Anda.',
+        'Pendaftaran diterima. Tim balai akan meninjau data dan dokumen Anda.',
     };
   },
 
@@ -610,14 +830,55 @@ export const publicService = {
   },
 
   async adminListRegistrations() {
-    return prisma.producerRegistrationRequest.findMany({
+    const rows = await prisma.producerRegistrationRequest.findMany({
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        id: true,
+        businessName: true,
+        ownerName: true,
+        phone: true,
+        email: true,
+        address: true,
+        nurseryAddress: true,
+        landOwnershipStatus: true,
+        status: true,
+        reviewNotes: true,
+        reviewedAt: true,
+        createdAt: true,
         kabupaten: { select: { id: true, name: true } },
+        nurseryKabupaten: { select: { id: true, name: true } },
         reviewedBy: { select: { id: true, name: true } },
+        createdProducer: { select: { id: true, registrationNumber: true } },
+        documents: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            kind: true,
+            title: true,
+            file: {
+              select: {
+                id: true,
+                originalName: true,
+                mimeType: true,
+                size: true,
+              },
+            },
+          },
+        },
       },
       take: 100,
     });
+    return rows.map((row) => ({
+      ...row,
+      documents: row.documents.map((document) => ({
+        ...document,
+        file: {
+          ...document.file,
+          size: Number(document.file.size),
+          url: `/api/v1/files/${document.file.id}`,
+        },
+      })),
+    }));
   },
 
   async adminUpdateRegistrationStatus(
@@ -628,40 +889,133 @@ export const publicService = {
   ) {
     const existing = await prisma.producerRegistrationRequest.findUnique({
       where: { id },
+      include: { documents: true },
     });
     if (!existing) throw new AppError('Pendaftaran tidak ditemukan', 404);
 
-    let createdProducerId = existing.createdProducerId;
+    if (status === 'APPROVED' && !existing.createdProducerId) {
+      if (!existing.email) throw new AppError('Email pendaftaran tidak tersedia', 409);
+      if (
+        !existing.passwordHash ||
+        !existing.nurseryAddress ||
+        !existing.landOwnershipStatus ||
+        existing.documents.length !== Object.keys(registrationDocumentDefinitions).length
+      ) {
+        throw new AppError(
+          'Pendaftaran lama belum memiliki data atau dokumen lengkap. Minta pendaftar mengajukan ulang.',
+          409,
+        );
+      }
+      const [duplicateUser, penangkarRole] = await Promise.all([
+        prisma.user.findFirst({
+          where: { email: existing.email, deletedAt: null },
+          select: { id: true },
+        }),
+        prisma.role.findUnique({ where: { slug: ROLES.PENANGKAR } }),
+      ]);
+      if (duplicateUser) throw new AppError('Email sudah digunakan pengguna lain', 409);
+      if (!penangkarRole) throw new AppError('Role Penangkar belum tersedia', 500);
 
-    if (status === 'APPROVED' && !createdProducerId) {
-      const year = new Date().getFullYear();
-      const count = await prisma.producer.count({
-        where: {
-          registrationNumber: { startsWith: `PBR-${year}-` },
-        },
+      return prisma.$transaction(async (tx) => {
+        const year = new Date().getFullYear();
+        const prefix = `PBR-${year}-`;
+        const latest = await tx.producer.findFirst({
+          where: { registrationNumber: { startsWith: prefix } },
+          orderBy: { registrationNumber: 'desc' },
+          select: { registrationNumber: true },
+        });
+        const lastSequence = Number(latest?.registrationNumber.split('-').pop() ?? 0);
+        const registrationNumber = `${prefix}${String(lastSequence + 1).padStart(4, '0')}`;
+        const producer = await tx.producer.create({
+          data: {
+            registrationNumber,
+            businessName: existing.businessName,
+            ownerName: existing.ownerName,
+            phone: existing.phone,
+            email: existing.email,
+            address: existing.address,
+            nurseryAddress: existing.nurseryAddress,
+            landOwnershipStatus: existing.landOwnershipStatus,
+            kabupatenId: existing.kabupatenId,
+            kecamatan: existing.kecamatan,
+            desa: existing.desa,
+            latitude: existing.latitude,
+            longitude: existing.longitude,
+            status: 'PENDING_VERIFICATION',
+            notes: 'Dibuat dari pendaftaran portal publik',
+          },
+        });
+        const nursery = await tx.nurseryLocation.create({
+          data: {
+            producerId: producer.id,
+            regionId: existing.nurseryKabupatenId,
+            name: `Lokasi Pembibitan ${existing.businessName}`,
+            address: existing.nurseryAddress,
+            landOwnershipStatus: existing.landOwnershipStatus,
+            status: 'ACTIVE',
+          },
+        });
+
+        if (existing.documents.length > 0) {
+          await tx.producerDocument.createMany({
+            data: existing.documents.map((document) => ({
+              producerId: producer.id,
+              kind: producerDocumentKinds[document.kind],
+              title: document.title,
+              fileId: document.fileId,
+              notes: 'Berasal dari pendaftaran portal publik',
+            })),
+          });
+          const nurseryKinds = new Set([
+            'LAND_OWNERSHIP_PROOF',
+            'NURSERY_PHOTO',
+            'FACILITIES_PHOTO',
+            'WATER_SOURCE_PHOTO',
+          ]);
+          await tx.nurseryDocument.createMany({
+            data: existing.documents
+              .filter((document) => nurseryKinds.has(document.kind))
+              .map((document) => ({
+                nurseryId: nursery.id,
+                kind: producerDocumentKinds[document.kind],
+                title: document.title,
+                fileId: document.fileId,
+              })),
+          });
+        }
+
+        await tx.user.create({
+          data: {
+            email: existing.email!,
+            passwordHash: existing.passwordHash!,
+            name: existing.ownerName,
+            phone: existing.phone,
+            producerId: producer.id,
+            regionId: existing.kabupatenId,
+            isActive: true,
+            userRoles: { create: { roleId: penangkarRole.id } },
+          },
+        });
+
+        return tx.producerRegistrationRequest.update({
+          where: { id },
+          data: {
+            status,
+            reviewedById,
+            reviewedAt: new Date(),
+            reviewNotes: reviewNotes ?? null,
+            createdProducerId: producer.id,
+          },
+          select: {
+            id: true,
+            status: true,
+            reviewedAt: true,
+            reviewNotes: true,
+            kabupaten: { select: { id: true, name: true } },
+            createdProducer: { select: { id: true, registrationNumber: true } },
+          },
+        });
       });
-      const registrationNumber = `PBR-${year}-${String(count + 1).padStart(5, '0')}`;
-      const producer = await prisma.producer.create({
-        data: {
-          registrationNumber,
-          businessName: existing.businessName,
-          ownerName: existing.ownerName,
-          nik: existing.nik,
-          phone: existing.phone,
-          email: existing.email,
-          address: existing.address,
-          kabupatenId: existing.kabupatenId,
-          kecamatan: existing.kecamatan,
-          desa: existing.desa,
-          latitude: existing.latitude,
-          longitude: existing.longitude,
-          status: 'PENDING_VERIFICATION',
-          notes: existing.notes
-            ? `Dari portal publik. ${existing.notes}`
-            : 'Dari portal publik',
-        },
-      });
-      createdProducerId = producer.id;
     }
 
     return prisma.producerRegistrationRequest.update({
@@ -671,9 +1025,13 @@ export const publicService = {
         reviewedById,
         reviewedAt: new Date(),
         reviewNotes: reviewNotes ?? null,
-        createdProducerId,
+        createdProducerId: existing.createdProducerId,
       },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        reviewedAt: true,
+        reviewNotes: true,
         kabupaten: { select: { id: true, name: true } },
         createdProducer: { select: { id: true, registrationNumber: true } },
       },

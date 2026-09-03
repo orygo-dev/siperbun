@@ -1,8 +1,26 @@
 import request from 'supertest';
+import { APPLICATION_DOCUMENT_TITLES } from '@siperbun/shared';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
 
 const app = createApp();
+
+async function uploadRequiredDocuments(
+  applicationId: string,
+  token: string,
+) {
+  for (const title of APPLICATION_DOCUMENT_TITLES) {
+    const response = await request(app)
+      .post(`/api/v1/certification-applications/${applicationId}/documents`)
+      .set('Authorization', `Bearer ${token}`)
+      .field('title', title)
+      .attach('file', Buffer.from('%PDF-1.4 test document'), {
+        filename: 'persyaratan.pdf',
+        contentType: 'application/pdf',
+      });
+    expect(response.status).toBe(201);
+  }
+}
 
 async function loginAdmin() {
   const res = await request(app).post('/api/v1/auth/login').send({
@@ -98,6 +116,8 @@ describe('Stage 3 — Seed sources & production & applications', () => {
     expect(create.status).toBe(201);
     expect(create.body.data.status).toBe('DRAFT');
     expect(create.body.data.applicationNumber).toMatch(/^SBN-\d{4}-\d{5}$/);
+
+    await uploadRequiredDocuments(create.body.data.id, token);
 
     const submit = await request(app)
       .post(`/api/v1/certification-applications/${create.body.data.id}/submit`)

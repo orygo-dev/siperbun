@@ -1,6 +1,7 @@
 export const APP_NAME = 'SIPERBUN';
 export const APP_FULL_NAME = 'Sistem Informasi Perbenihan Perkebunan';
-export const OFFICE_NAME = 'Dinas Perkebunan Provinsi Kalimantan Selatan';
+export const OFFICE_NAME =
+  'UPTD Balai Pengawasan Sertifikasi Benih dan Proteksi Tanaman Perkebunan Provinsi Kalimantan Selatan';
 
 export const API_PREFIX = '/api/v1';
 
@@ -11,6 +12,22 @@ export const KALSEL_MAP_CENTER = {
 } as const;
 
 export const REFRESH_COOKIE_NAME = 'siperbun_refresh';
+
+export const APPLICATION_DOCUMENT_TITLES = [
+  'Surat permohonan',
+  'Surat izin usaha produksi benih dan/atau perizinan perusahaan berbasis risiko',
+  'Sertifikat standar',
+  'Sertifikat mutu benih',
+  'Daftar persilangan atau kode persilangan',
+  'Dokumen (data dan berita acara) seleksi pembenihan di Pre Nursery / Main Nursery',
+  'Surat pengantar / Delivery Order (DO) asal-usul kecambah',
+  'Ketersediaan tenaga yang kompeten di kebun',
+  'Dokumen status kepemilikan kebun perbenihan',
+  'Rekam pemeliharaan kebun perbenihan',
+] as const;
+
+export type ApplicationDocumentTitle =
+  (typeof APPLICATION_DOCUMENT_TITLES)[number];
 
 /** Kategori temuan pengawasan peredaran */
 export const CirculationFindingCategory = {

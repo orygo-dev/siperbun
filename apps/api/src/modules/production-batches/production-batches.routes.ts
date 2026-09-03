@@ -21,6 +21,7 @@ productionBatchesRouter.get(
   requirePermission(PERMISSIONS.PRODUCTION_VIEW),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const result = await productionBatchesService.list({
         page: Number(req.query.page ?? 1),
         limit: Number(req.query.limit ?? 10),
@@ -28,7 +29,7 @@ productionBatchesRouter.get(
         producerId: req.query.producerId as string | undefined,
         commodityId: req.query.commodityId as string | undefined,
         status: req.query.status as string | undefined,
-      });
+      }, user);
       return success(
         res,
         result.items,
@@ -47,7 +48,8 @@ productionBatchesRouter.get(
   requirePermission(PERMISSIONS.PRODUCTION_VIEW),
   async (req, res, next) => {
     try {
-      const item = await productionBatchesService.getById(String(req.params.id));
+      const user = (req as AuthedRequest).user!;
+      const item = await productionBatchesService.getById(String(req.params.id), user);
       return success(res, item, 'Detail batch produksi berhasil dimuat');
     } catch (e) {
       next(e);
@@ -61,7 +63,8 @@ productionBatchesRouter.post(
   validateBody(productionBatchCreateSchema),
   async (req, res, next) => {
     try {
-      const item = await productionBatchesService.create(req.body);
+      const user = (req as AuthedRequest).user!;
+      const item = await productionBatchesService.create(req.body, user);
       return success(res, item, 'Batch produksi berhasil ditambahkan', 201);
     } catch (e) {
       next(e);
@@ -75,9 +78,11 @@ productionBatchesRouter.put(
   validateBody(productionBatchUpdateSchema),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const item = await productionBatchesService.update(
         String(req.params.id),
         req.body,
+        user,
       );
       return success(res, item, 'Batch produksi berhasil diperbarui');
     } catch (e) {
@@ -110,7 +115,7 @@ productionBatchesRouter.post(
       const item = await productionBatchesService.addLog(
         String(req.params.id),
         req.body,
-        req.user!.id,
+        req.user!,
       );
       return success(res, item, 'Log produksi berhasil ditambahkan', 201);
     } catch (e) {
@@ -125,9 +130,11 @@ productionBatchesRouter.post(
   validateBody(productionStatusChangeSchema),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const item = await productionBatchesService.changeStatus(
         String(req.params.id),
         req.body,
+        user,
       );
       return success(res, item, 'Status produksi berhasil diubah');
     } catch (e) {

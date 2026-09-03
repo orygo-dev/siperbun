@@ -3,7 +3,7 @@ import { Leaf, LogIn, UserPlus, Users } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const tabs = [
-  { to: '/portal', label: 'Katalog', icon: Leaf, end: true },
+  { to: '/portal/bibit', label: 'Katalog', icon: Leaf, end: true },
   { to: '/portal/penangkar', label: 'Penangkar', icon: Users },
   { to: '/portal/daftar', label: 'Daftar', icon: UserPlus },
   { to: '/login', label: 'Login', icon: LogIn },

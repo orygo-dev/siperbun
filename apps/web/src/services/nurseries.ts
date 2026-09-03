@@ -7,6 +7,7 @@ export type Nursery = {
   regionId?: string | null;
   name: string;
   address?: string | null;
+  landOwnershipStatus?: 'RENTED' | 'BORROWED' | 'OWNED' | null;
   latitude?: number | null;
   longitude?: number | null;
   areaHa?: number | null;

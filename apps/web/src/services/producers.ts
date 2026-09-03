@@ -11,7 +11,10 @@ export type Producer = {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
+  nurseryAddress?: string | null;
+  landOwnershipStatus?: 'RENTED' | 'BORROWED' | 'OWNED' | null;
   kabupatenId?: string | null;
+  nurseryKabupatenId?: string | null;
   kecamatan?: string | null;
   desa?: string | null;
   latitude?: number | null;
@@ -28,6 +31,22 @@ export type Producer = {
     status: string;
     capacity?: number | null;
     areaHa?: number | null;
+    address?: string | null;
+    landOwnershipStatus?: 'RENTED' | 'BORROWED' | 'OWNED' | null;
+    region?: { id: string; name: string; code: string } | null;
+  }>;
+  documents?: Array<{
+    id: string;
+    kind: string;
+    title: string;
+    notes?: string | null;
+    file: {
+      id: string;
+      originalName: string;
+      mimeType: string;
+      size: number;
+      url: string;
+    } | null;
   }>;
   seedGardens?: Array<{
     id: string;
@@ -53,4 +72,6 @@ export const producersApi = {
     api.post<ApiResponse<Producer>>(`/producers/${id}/activate`),
   deactivate: (id: string) =>
     api.post<ApiResponse<Producer>>(`/producers/${id}/deactivate`),
+  downloadFile: (fileId: string) =>
+    api.get<Blob>(`/files/${fileId}`, { responseType: 'blob' }),
 };

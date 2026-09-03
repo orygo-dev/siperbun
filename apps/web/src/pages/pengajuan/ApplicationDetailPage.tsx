@@ -11,12 +11,16 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { applicationsApi } from '../../services/applications';
 import { usersApi } from '../../services/users';
 import { useAuthStore } from '../../stores/authStore';
+import { ApplicationFinancePanel } from './ApplicationFinancePanel';
+import { ApplicationWorkflowWizard } from './ApplicationWorkflowWizard';
 
 export function ApplicationDetailPage() {
   const { id } = useParams();
   const qc = useQueryClient();
   const hasPermission = useAuthStore((s) => s.hasPermission);
+  const isProducer = useAuthStore((s) => s.user?.roles.includes('PENANGKAR') ?? false);
   const [notes, setNotes] = useState('');
+  const [uploadingTitle, setUploadingTitle] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState({
     inspectorId: '',
     scheduledDate: '',
@@ -107,6 +111,42 @@ export function ApplicationDetailPage() {
     onError,
   });
 
+  const rejectMutation = useMutation({
+    mutationFn: () =>
+      applicationsApi.changeStatus(id!, {
+        toStatus: ApplicationStatus.REJECTED,
+        notes: notes.trim(),
+      }),
+    onSuccess: (res) => {
+      toast.success(res.data.message);
+      setNotes('');
+      invalidate();
+    },
+    onError,
+  });
+
+  const uploadDocumentMutation = useMutation({
+    mutationFn: ({ title, file }: { title: string; file: File }) =>
+      applicationsApi.uploadDocument(id!, title, file),
+    onMutate: ({ title }) => setUploadingTitle(title),
+    onSuccess: (response) => {
+      toast.success(response.data.message);
+      invalidate();
+    },
+    onError,
+    onSettled: () => setUploadingTitle(null),
+  });
+
+  const removeDocumentMutation = useMutation({
+    mutationFn: (documentId: string) =>
+      applicationsApi.removeDocument(id!, documentId),
+    onSuccess: (response) => {
+      toast.success(response.data.message);
+      invalidate();
+    },
+    onError,
+  });
+
   if (query.isLoading) return <LoadingState />;
   if (query.isError || !query.data) {
     return <ErrorState onRetry={() => query.refetch()} />;
@@ -118,6 +158,10 @@ export function ApplicationDetailPage() {
       a.status === ApplicationStatus.ADMIN_REVISION_REQUIRED) &&
     (hasPermission(PERMISSIONS.APPLICATION_CREATE) ||
       hasPermission(PERMISSIONS.APPLICATION_VERIFY));
+  const canEdit =
+    (a.status === ApplicationStatus.DRAFT ||
+      a.status === ApplicationStatus.ADMIN_REVISION_REQUIRED) &&
+    hasPermission(PERMISSIONS.APPLICATION_CREATE);
   const canVerify =
     (a.status === ApplicationStatus.ADMIN_REVIEW ||
       a.status === ApplicationStatus.SUBMITTED) &&
@@ -129,10 +173,13 @@ export function ApplicationDetailPage() {
     a.status === ApplicationStatus.WAITING_ASSIGNMENT &&
     hasPermission(PERMISSIONS.APPLICATION_ASSIGN);
   const canCreateCertificate =
-    a.status === ApplicationStatus.INSPECTION_PASSED &&
+    a.status === ApplicationStatus.PAYMENT_VERIFIED &&
     !a.certificate &&
     (hasPermission(PERMISSIONS.CERTIFICATE_UPLOAD) ||
       hasPermission(PERMISSIONS.APPLICATION_VERIFY));
+  const rejectionReason = a.statusHistory?.find(
+    (history) => history.toStatus === ApplicationStatus.REJECTED,
+  )?.notes;
 
   const row = (label: string, value?: ReactNode) => (
     <div className="border-b border-border py-2.5 sm:grid sm:grid-cols-3 sm:gap-4">
@@ -156,6 +203,14 @@ export function ApplicationDetailPage() {
                 Buat Sertifikat
               </Link>
             ) : null}
+            {canEdit ? (
+              <Link
+                to={`/pengajuan/${a.id}/edit`}
+                className="h-10 rounded-lg border border-primary px-4 text-sm font-medium leading-10 text-primary"
+              >
+                Perbaiki Data
+              </Link>
+            ) : null}
             {a.certificate ? (
               <Link
                 to={`/sertifikat/${a.certificate.id}`}
@@ -173,6 +228,26 @@ export function ApplicationDetailPage() {
           </div>
         }
       />
+
+      <ApplicationWorkflowWizard status={a.status} />
+
+      {a.status === ApplicationStatus.REJECTED ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-red-800 shadow-soft">
+          <div className="font-semibold">Pengajuan ditolak</div>
+          <p className="mt-1 text-sm">
+            {rejectionReason || 'Hubungi admin untuk memperoleh informasi penolakan.'}
+          </p>
+        </div>
+      ) : null}
+
+      {a.status === ApplicationStatus.ADMIN_REVISION_REQUIRED ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-soft">
+          <div className="font-semibold">Pengajuan perlu diperbaiki</div>
+          <p className="mt-1 text-sm">
+            {a.statusHistory?.find((history) => history.toStatus === ApplicationStatus.ADMIN_REVISION_REQUIRED)?.notes || 'Periksa kembali dokumen pengajuan.'}
+          </p>
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
         <div className="mb-3">
@@ -219,12 +294,73 @@ export function ApplicationDetailPage() {
         </dl>
       </div>
 
+      <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold">Dokumen Pengajuan</h3>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">
+              Dokumen persyaratan sertifikasi dapat diganti selama status Draft atau Perbaikan.
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              a.documentCompliance?.complete
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-orange-50 text-orange-700'
+            }`}
+          >
+            {a.documentCompliance?.complete ? 'Lengkap' : 'Belum lengkap'}
+          </span>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {(a.documentCompliance?.required ?? []).map((title) => {
+            const document = (a.documents ?? []).find((item) => item.title === title);
+            return (
+              <div key={title} className="rounded-lg border border-border p-3">
+                <div className="text-xs font-medium">{title}</div>
+                <div className="mt-1 text-xs text-[var(--text-secondary)]">
+                  {document?.file?.originalName ?? 'Belum diunggah'}
+                </div>
+                {canEdit ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <label className="cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-slate-50">
+                      {uploadingTitle === title ? 'Mengunggah...' : document ? 'Ganti' : 'Unggah'}
+                      <input
+                        type="file"
+                        accept="application/pdf,image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        disabled={uploadDocumentMutation.isPending}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) uploadDocumentMutation.mutate({ title, file });
+                          event.target.value = '';
+                        }}
+                      />
+                    </label>
+                    {document ? (
+                      <button
+                        type="button"
+                        onClick={() => removeDocumentMutation.mutate(document.id)}
+                        disabled={removeDocumentMutation.isPending}
+                        className="rounded-md px-2 py-1.5 text-xs text-danger hover:bg-red-50"
+                      >
+                        Hapus
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {(canSubmit || canVerify || canRequestRevision) && (
         <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
           <h3 className="mb-3 text-sm font-semibold">Aksi Workflow</h3>
           <textarea
             rows={2}
-            placeholder="Catatan aksi (opsional)"
+            placeholder={canRequestRevision ? 'Catatan perbaikan wajib diisi' : 'Catatan aksi (opsional)'}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             className="mb-3 w-full rounded-lg border border-border px-3 py-2 text-sm"
@@ -234,7 +370,9 @@ export function ApplicationDetailPage() {
               <button
                 type="button"
                 onClick={() => submitMutation.mutate()}
-                disabled={submitMutation.isPending}
+                disabled={
+                  submitMutation.isPending || !a.documentCompliance?.complete
+                }
                 className="h-10 rounded-lg bg-primary px-4 text-sm font-medium text-white disabled:opacity-60"
               >
                 Ajukan
@@ -257,10 +395,22 @@ export function ApplicationDetailPage() {
                 <button
                   type="button"
                   onClick={() => revisionMutation.mutate()}
-                  disabled={revisionMutation.isPending}
+                  disabled={revisionMutation.isPending || !notes.trim()}
                   className="h-10 rounded-lg border border-orange-300 bg-orange-50 px-4 text-sm font-medium text-orange-700 disabled:opacity-60"
                 >
                   Minta Perbaikan
+                </button>
+              </PermissionGuard>
+            ) : null}
+            {canRequestRevision ? (
+              <PermissionGuard permission={PERMISSIONS.APPLICATION_VERIFY}>
+                <button
+                  type="button"
+                  onClick={() => rejectMutation.mutate()}
+                  disabled={rejectMutation.isPending || !notes.trim()}
+                  className="h-10 rounded-lg border border-red-300 bg-red-50 px-4 text-sm font-medium text-red-700 disabled:opacity-60"
+                >
+                  Tolak Pengajuan
                 </button>
               </PermissionGuard>
             ) : null}
@@ -374,6 +524,13 @@ export function ApplicationDetailPage() {
           </div>
         </PermissionGuard>
       ) : null}
+
+      <ApplicationFinancePanel
+        application={a}
+        canManage={hasPermission(PERMISSIONS.APPLICATION_VERIFY)}
+        canUploadPayment={isProducer}
+        onChanged={invalidate}
+      />
 
       <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
         <h3 className="mb-3 text-sm font-semibold">Riwayat Status</h3>

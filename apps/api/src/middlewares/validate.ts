@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { ZodSchema } from 'zod';
+import { z, ZodSchema } from 'zod';
 import { AppError } from '../utils/errors';
 
 export function validateBody(schema: ZodSchema) {
@@ -17,4 +17,17 @@ export function validateBody(schema: ZodSchema) {
     req.body = parsed.data;
     next();
   };
+}
+
+const uuidParamSchema = z.string().uuid();
+
+export function requiredUuidParam(
+  value: string | undefined,
+  name = 'id',
+): string {
+  const parsed = uuidParamSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new AppError(`Parameter ${name} tidak valid`, 400);
+  }
+  return parsed.data;
 }

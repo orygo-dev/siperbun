@@ -2,6 +2,7 @@ import type { NurseryCreateInput, NurseryUpdateInput } from '@siperbun/shared';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { type AccessUser, isProducerUser, requireProducerId } from '../../utils/access-scope';
 
 function serializeNursery<T extends Record<string, unknown>>(n: T) {
   const row = n as T & {
@@ -32,14 +33,18 @@ export const nurseriesService = {
     search?: string;
     producerId?: string;
     status?: string;
-  }) {
+  }, user?: AccessUser) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
     const search = String(query.search ?? '').trim();
 
     const where: Prisma.NurseryLocationWhereInput = {
       deletedAt: null,
-      ...(query.producerId ? { producerId: query.producerId } : {}),
+      ...(user && isProducerUser(user)
+        ? { producerId: requireProducerId(user) }
+        : query.producerId
+          ? { producerId: query.producerId }
+          : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(search
         ? {
@@ -69,9 +74,15 @@ export const nurseriesService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user?: AccessUser) {
     const item = await prisma.nurseryLocation.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(user && isProducerUser(user)
+          ? { producerId: requireProducerId(user) }
+          : {}),
+      },
       include,
     });
     if (!item) throw new AppError('Lokasi pembibitan tidak ditemukan', 404);
@@ -91,6 +102,7 @@ export const nurseriesService = {
         regionId: input.regionId ?? null,
         name: input.name,
         address: input.address ?? null,
+        landOwnershipStatus: input.landOwnershipStatus ?? null,
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,
         areaHa: input.areaHa ?? null,
@@ -103,6 +115,15 @@ export const nurseriesService = {
       },
       include,
     });
+    if (!producer.nurseryAddress) {
+      await prisma.producer.update({
+        where: { id: producer.id },
+        data: {
+          nurseryAddress: input.address ?? null,
+          landOwnershipStatus: input.landOwnershipStatus ?? null,
+        },
+      });
+    }
     return serializeNursery(item);
   },
 
@@ -119,6 +140,12 @@ export const nurseriesService = {
       if (!producer) throw new AppError('Penangkar tidak ditemukan', 404);
     }
 
+    const primaryNursery = await prisma.nurseryLocation.findFirst({
+      where: { producerId: existing.producerId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
     const item = await prisma.nurseryLocation.update({
       where: { id },
       data: {
@@ -127,6 +154,9 @@ export const nurseriesService = {
         ...(input.regionId !== undefined ? { regionId: input.regionId } : {}),
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.address !== undefined ? { address: input.address } : {}),
+        ...(input.landOwnershipStatus !== undefined
+          ? { landOwnershipStatus: input.landOwnershipStatus }
+          : {}),
         ...(input.latitude !== undefined ? { latitude: input.latitude } : {}),
         ...(input.longitude !== undefined ? { longitude: input.longitude } : {}),
         ...(input.areaHa !== undefined ? { areaHa: input.areaHa } : {}),
@@ -145,6 +175,38 @@ export const nurseriesService = {
       },
       include,
     });
+    if (primaryNursery?.id === id && item.producerId !== existing.producerId) {
+      const oldReplacement = await prisma.nurseryLocation.findFirst({
+        where: {
+          producerId: existing.producerId,
+          deletedAt: null,
+          NOT: { id },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { address: true, landOwnershipStatus: true },
+      });
+      await prisma.producer.update({
+        where: { id: existing.producerId },
+        data: {
+          nurseryAddress: oldReplacement?.address ?? null,
+          landOwnershipStatus: oldReplacement?.landOwnershipStatus ?? null,
+        },
+      });
+    }
+    const newPrimary = await prisma.nurseryLocation.findFirst({
+      where: { producerId: item.producerId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, address: true, landOwnershipStatus: true },
+    });
+    if (newPrimary?.id === id) {
+      await prisma.producer.update({
+        where: { id: item.producerId },
+        data: {
+          nurseryAddress: item.address,
+          landOwnershipStatus: item.landOwnershipStatus,
+        },
+      });
+    }
     return serializeNursery(item);
   },
 
@@ -156,6 +218,18 @@ export const nurseriesService = {
     await prisma.nurseryLocation.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+    const replacement = await prisma.nurseryLocation.findFirst({
+      where: { producerId: existing.producerId, deletedAt: null, NOT: { id } },
+      orderBy: { createdAt: 'asc' },
+      select: { address: true, landOwnershipStatus: true },
+    });
+    await prisma.producer.update({
+      where: { id: existing.producerId },
+      data: {
+        nurseryAddress: replacement?.address ?? null,
+        landOwnershipStatus: replacement?.landOwnershipStatus ?? null,
+      },
     });
     return { id };
   },

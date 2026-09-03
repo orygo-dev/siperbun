@@ -78,6 +78,13 @@ const producerStatusEnum = z.enum([
   ProducerStatus.REJECTED,
 ]);
 
+export const landOwnershipStatusSchema = z.enum(
+  ['RENTED', 'BORROWED', 'OWNED'],
+  { required_error: 'Status kepemilikan lahan wajib dipilih' },
+);
+
+export type LandOwnershipStatus = z.infer<typeof landOwnershipStatusSchema>;
+
 export const producerCreateSchema = z.object({
   registrationNumber: optionalString,
   businessName: z.string().min(1, 'Nama usaha wajib diisi').max(191),
@@ -88,7 +95,10 @@ export const producerCreateSchema = z.object({
   phone: optionalString,
   email: optionalEmail,
   address: optionalString,
+  nurseryAddress: optionalString,
+  landOwnershipStatus: landOwnershipStatusSchema.optional().nullable(),
   kabupatenId: optionalString,
+  nurseryKabupatenId: optionalString,
   kecamatan: optionalString,
   desa: optionalString,
   latitude: optionalNumber,
@@ -118,6 +128,7 @@ export const nurseryCreateSchema = z.object({
   regionId: optionalString,
   name: z.string().min(1, 'Nama lokasi wajib diisi').max(191),
   address: optionalString,
+  landOwnershipStatus: landOwnershipStatusSchema.optional().nullable(),
   latitude: optionalNumber,
   longitude: optionalNumber,
   areaHa: optionalNumber,
@@ -271,6 +282,11 @@ const applicationStatusEnum = z.enum([
   ApplicationStatus.WAITING_RESULT_VALIDATION,
   ApplicationStatus.INSPECTION_PASSED,
   ApplicationStatus.INSPECTION_FAILED,
+  ApplicationStatus.WAITING_LHP_INVOICE,
+  ApplicationStatus.WAITING_PAYMENT,
+  ApplicationStatus.PAYMENT_VERIFICATION,
+  ApplicationStatus.PAYMENT_REJECTED,
+  ApplicationStatus.PAYMENT_VERIFIED,
   ApplicationStatus.CERTIFICATE_ISSUED_MANUALLY,
   ApplicationStatus.WAITING_CERTIFICATE_SCAN,
   ApplicationStatus.CERTIFICATE_SCAN_UPLOADED,
@@ -400,9 +416,45 @@ export type CertificationApplicationUpdateInput = z.infer<
   typeof certificationApplicationUpdateSchema
 >;
 
+export const invoiceCreateSchema = z.object({
+  reportNumber: z.string().trim().min(3, 'Nomor LHP wajib diisi').max(50),
+  invoiceNumber: z.string().trim().min(3, 'Nomor invoice wajib diisi').max(50),
+  amount: z.coerce.number().positive('Nominal harus lebih dari 0'),
+  dueDate: z.string().min(1, 'Batas pembayaran wajib diisi'),
+  paymentInstructions: optionalString,
+  notes: optionalString,
+});
+
+export type InvoiceCreateInput = z.infer<typeof invoiceCreateSchema>;
+
+export const paymentProofCreateSchema = z.object({
+  notes: optionalString,
+});
+
+export const paymentVerificationSchema = z.object({
+  decision: z.enum(['ACCEPTED', 'REJECTED']),
+  notes: optionalString,
+}).superRefine((value, context) => {
+  if (value.decision === 'REJECTED' && !value.notes?.trim()) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['notes'],
+      message: 'Alasan penolakan pembayaran wajib diisi',
+    });
+  }
+});
+
 export const applicationStatusChangeSchema = z.object({
   toStatus: applicationStatusEnum,
   notes: optionalString,
+}).superRefine((value, context) => {
+  if (value.toStatus === ApplicationStatus.REJECTED && !value.notes?.trim()) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['notes'],
+      message: 'Alasan penolakan pengajuan wajib diisi',
+    });
+  }
 });
 
 export type ApplicationStatusChangeInput = z.infer<
@@ -424,6 +476,18 @@ export const applicationNotesSchema = z.object({
 });
 
 export type ApplicationNotesInput = z.infer<typeof applicationNotesSchema>;
+
+export const applicationRevisionSchema = z.object({
+  notes: z
+    .string()
+    .trim()
+    .min(5, 'Catatan perbaikan minimal 5 karakter')
+    .max(2000, 'Catatan perbaikan maksimal 2000 karakter'),
+});
+
+export type ApplicationRevisionInput = z.infer<
+  typeof applicationRevisionSchema
+>;
 
 const assignmentStatusEnum = z.enum([
   AssignmentStatus.SCHEDULED,
@@ -791,6 +855,74 @@ export const brandingUpdateSchema = z.object({
 
 export type BrandingUpdateInput = z.infer<typeof brandingUpdateSchema>;
 
+const portalLinkSchema = z
+  .string()
+  .min(1, 'Tautan wajib diisi')
+  .max(500, 'Tautan maksimal 500 karakter')
+  .refine(
+    (value) =>
+      value.startsWith('/') ||
+      value.startsWith('#') ||
+      /^https?:\/\//i.test(value) ||
+      /^(mailto|tel):/i.test(value),
+    'Gunakan path internal, anchor, URL http(s), email, atau telepon',
+  );
+
+const portalServiceSchema = z.object({
+  title: z.string().min(2).max(100),
+  description: z.string().min(5).max(300),
+  link: portalLinkSchema,
+});
+
+export const portalContentSchema = z.object({
+  hero: z.object({
+    enabled: z.boolean(),
+    title: z.string().min(10).max(160),
+    description: z.string().min(10).max(400),
+    primaryLabel: z.string().min(2).max(40),
+    primaryLink: portalLinkSchema,
+    secondaryLabel: z.string().min(2).max(40),
+    secondaryLink: portalLinkSchema,
+  }),
+  profile: z.object({
+    enabled: z.boolean(),
+    title: z.string().min(5).max(140),
+    body: z.string().min(20).max(1500),
+    secondaryBody: z.string().max(1500),
+    responsibilities: z.array(z.string().min(5).max(240)).min(1).max(8),
+  }),
+  services: z.object({
+    enabled: z.boolean(),
+    title: z.string().min(5).max(120),
+    intro: z.string().min(10).max(400),
+    items: z.array(portalServiceSchema).min(1).max(6),
+  }),
+  visionMission: z.object({
+    enabled: z.boolean(),
+    vision: z.string().min(20).max(700),
+    missions: z.array(z.string().min(10).max(400)).min(1).max(8),
+  }),
+  map: z.object({
+    enabled: z.boolean(),
+    title: z.string().min(5).max(140),
+    description: z.string().min(10).max(400),
+  }),
+  contact: z.object({
+    enabled: z.boolean(),
+    title: z.string().min(5).max(180),
+    primaryLabel: z.string().min(2).max(50),
+    primaryLink: portalLinkSchema,
+    secondaryLabel: z.string().min(2).max(50),
+    secondaryLink: portalLinkSchema,
+    address: z.string().min(5).max(500),
+    hours: z.string().min(5).max(160),
+    phone: z.string().min(5).max(40),
+    email: z.string().email('Email tidak valid').max(191),
+  }),
+});
+
+export type PortalContentInput = z.infer<typeof portalContentSchema>;
+
 const optionalDateTime = z.preprocess((val) => {
   if (val === '' || val === null || val === undefined) return null;
   return val;
@@ -911,37 +1043,39 @@ export const publicListingUpdateSchema = publicListingCreateSchema.partial();
 export type PublicListingUpdateInput = z.infer<typeof publicListingUpdateSchema>;
 
 export const producerRegistrationSchema = z.object({
-  businessName: z
+  organizationName: z
     .string()
-    .min(2, 'Nama usaha minimal 2 karakter')
+    .trim()
+    .min(2, 'Nama perusahaan/lembaga/perorangan minimal 2 karakter')
     .max(191),
-  ownerName: z.string().min(2, 'Nama pemilik minimal 2 karakter').max(191),
-  nik: z
+  producerName: z
     .string()
-    .max(20)
-    .optional()
-    .nullable()
-    .transform((v) => (v === '' || v == null ? null : v)),
-  phone: z.string().min(8, 'Nomor telepon wajib diisi').max(30),
-  email: optionalEmail,
-  address: optionalString,
-  kabupatenId: z
+    .trim()
+    .min(2, 'Nama penangkar minimal 2 karakter')
+    .max(191),
+  email: z.string().trim().email('Email tidak valid').max(191),
+  password: z
     .string()
-    .uuid()
-    .optional()
-    .nullable()
-    .transform((v) => (v === '' || v == null ? null : v)),
-  kecamatan: optionalString,
-  desa: optionalString,
-  latitude: optionalNumber,
-  longitude: optionalNumber,
-  commodityInterest: z
+    .min(8, 'Password minimal 8 karakter')
+    .max(72, 'Password maksimal 72 karakter')
+    .regex(/[A-Za-z]/, 'Password harus memuat huruf')
+    .regex(/[0-9]/, 'Password harus memuat angka'),
+  phone: z.string().trim().min(8, 'Nomor HP wajib diisi').max(30),
+  officeAddress: z
     .string()
-    .max(255)
-    .optional()
-    .nullable()
-    .transform((v) => (v === '' || v == null ? null : v)),
-  notes: optionalString,
+    .trim()
+    .min(5, 'Alamat kantor wajib diisi')
+    .max(2000),
+  kabupatenId: z.string().uuid('Kabupaten kantor wajib dipilih'),
+  nurseryAddress: z
+    .string()
+    .trim()
+    .min(5, 'Alamat lokasi pembibitan wajib diisi')
+    .max(2000),
+  nurseryKabupatenId: z
+    .string()
+    .uuid('Kabupaten lokasi pembibitan wajib dipilih'),
+  landOwnershipStatus: landOwnershipStatusSchema,
 });
 
 export type ProducerRegistrationInput = z.infer<

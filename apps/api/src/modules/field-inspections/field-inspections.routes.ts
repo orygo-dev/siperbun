@@ -28,13 +28,14 @@ fieldInspectionsRouter.get(
   requirePermission(PERMISSIONS.INSPECTION_VIEW),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const result = await fieldInspectionsService.list({
         page: Number(req.query.page ?? 1),
         limit: Number(req.query.limit ?? 10),
         search: req.query.search as string | undefined,
         inspectorId: req.query.inspectorId as string | undefined,
         isFinalized: req.query.isFinalized as string | undefined,
-      });
+      }, user);
       return success(
         res,
         result.items,
@@ -68,7 +69,8 @@ fieldInspectionsRouter.get(
   requirePermission(PERMISSIONS.INSPECTION_VIEW),
   async (req, res, next) => {
     try {
-      const item = await fieldInspectionsService.getById(String(req.params.id));
+      const user = (req as AuthedRequest).user!;
+      const item = await fieldInspectionsService.getById(String(req.params.id), user);
       return success(res, item, 'Detail pemeriksaan berhasil dimuat');
     } catch (e) {
       next(e);
@@ -82,9 +84,11 @@ fieldInspectionsRouter.put(
   validateBody(fieldInspectionUpdateSchema),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const item = await fieldInspectionsService.update(
         String(req.params.id),
         req.body,
+        user,
       );
       return success(res, item, 'Pemeriksaan berhasil diperbarui');
     } catch (e) {
@@ -119,6 +123,7 @@ fieldInspectionsRouter.post(
           caption: (req.body?.caption as string | undefined) ?? null,
           uploadedById: user.id,
         },
+        user,
       );
       return success(res, item, 'Foto berhasil diunggah', 201);
     } catch (e) {
@@ -137,7 +142,7 @@ fieldInspectionsRouter.post(
       const item = await fieldInspectionsService.addFinding(
         String(req.params.id),
         req.body,
-        user.id,
+        user,
       );
       return success(res, item, 'Temuan berhasil ditambahkan', 201);
     } catch (e) {
@@ -152,9 +157,11 @@ fieldInspectionsRouter.post(
   validateBody(inspectionResultsUpsertSchema),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const item = await fieldInspectionsService.upsertResults(
         String(req.params.id),
         req.body,
+        user,
       );
       return success(res, item, 'Hasil checklist berhasil disimpan');
     } catch (e) {

@@ -1,4 +1,3 @@
-import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -38,11 +37,6 @@ export function createApp() {
 
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use('/api/v1', v1Router);
-
-  app.use(
-    '/storage',
-    express.static(path.resolve(process.cwd(), env.storagePath)),
-  );
 
   app.use(notFound);
   app.use(errorHandler);

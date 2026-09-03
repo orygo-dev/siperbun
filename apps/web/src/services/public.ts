@@ -70,6 +70,9 @@ export type PublicProducerDetail = {
   phone: string | null;
   email: string | null;
   address: string | null;
+  nurseryAddress: string | null;
+  nurseryKabupaten: string | null;
+  landOwnershipStatus: 'RENTED' | 'BORROWED' | 'OWNED' | null;
   kabupaten: string | null;
   kecamatan: string | null;
   desa: string | null;
@@ -79,10 +82,28 @@ export type PublicProducerDetail = {
     id: string;
     name: string;
     address: string | null;
+    kabupaten: string | null;
     latitude: number | null;
     longitude: number | null;
   }[];
   listings: PublicListingCard[];
+};
+
+export type PublicMapSummary = {
+  districts: Array<{
+    id: string;
+    name: string;
+    code: string;
+    producerCount: number;
+  }>;
+  markers: Array<{
+    id: string;
+    businessName: string;
+    latitude: number;
+    longitude: number;
+    kabupaten: { id: string; name: string } | null;
+    commodities: Array<{ id: string; name: string }>;
+  }>;
 };
 
 export const publicApi = {
@@ -90,6 +111,10 @@ export const publicApi = {
     api.get<ApiResponse<PublicCommodity[]>>('/public/commodities'),
   kabupaten: () =>
     api.get<ApiResponse<PublicKabupaten[]>>('/public/regions/kabupaten'),
+  map: (commodityId?: string) =>
+    api.get<ApiResponse<PublicMapSummary>>('/public/map', {
+      params: commodityId ? { commodityId } : undefined,
+    }),
   banners: () =>
     api.get<ApiResponse<DashboardBanner[]>>('/settings/banners/active', {
       params: { placement: 'MOBILE' },
@@ -102,7 +127,7 @@ export const publicApi = {
     api.get<ApiResponse<PublicProducerCard[]>>('/public/producers', { params }),
   producer: (id: string) =>
     api.get<ApiResponse<PublicProducerDetail>>(`/public/producers/${id}`),
-  register: (payload: Record<string, unknown>) =>
+  register: (payload: FormData) =>
     api.post<ApiResponse<{ id: string; message: string }>>(
       '/public/registrations',
       payload,
@@ -132,9 +157,17 @@ export const catalogApi = {
     ),
   registrations: () =>
     api.get<ApiResponse<unknown[]>>('/catalog/registrations'),
+  createRegistration: (payload: FormData) =>
+    api.post<ApiResponse<{
+      id: string;
+      status: string;
+      createdProducer?: { id: string; registrationNumber: string } | null;
+    }>>('/catalog/registrations', payload),
   updateRegistration: (
     id: string,
     payload: { status: string; reviewNotes?: string | null },
   ) =>
     api.patch<ApiResponse<unknown>>(`/catalog/registrations/${id}/status`, payload),
+  downloadRegistrationFile: (fileId: string) =>
+    api.get<Blob>(`/files/${fileId}`, { responseType: 'blob' }),
 };

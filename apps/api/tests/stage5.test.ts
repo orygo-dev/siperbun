@@ -29,12 +29,12 @@ describe('Stage 5 — Certificates upload, verify, versioning', () => {
     token = await login('admin@siperbun.local');
     if (!token) return;
 
-    // Prefer an existing INSPECTION_PASSED app without certificate;
+    // Prefer an existing paid application without certificate;
     // otherwise promote a WAITING_ASSIGNMENT app that has no cert.
     let appRow = await prisma.certificationApplication.findFirst({
       where: {
         deletedAt: null,
-        status: 'INSPECTION_PASSED',
+        status: 'PAYMENT_VERIFIED',
         certificate: null,
       },
       select: { id: true },
@@ -58,7 +58,7 @@ describe('Stage 5 — Certificates upload, verify, versioning', () => {
       if (appRow) {
         await prisma.certificationApplication.update({
           where: { id: appRow.id },
-          data: { status: 'INSPECTION_PASSED' },
+          data: { status: 'PAYMENT_VERIFIED' },
         });
       }
     }
@@ -66,7 +66,7 @@ describe('Stage 5 — Certificates upload, verify, versioning', () => {
     applicationId = appRow?.id ?? null;
   });
 
-  it('creates certificate for INSPECTION_PASSED application', async () => {
+  it('creates certificate for PAYMENT_VERIFIED application', async () => {
     if (!token || !applicationId) {
       expect(true).toBe(true);
       return;

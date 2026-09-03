@@ -62,6 +62,16 @@ export function NurseryDetailPage() {
           {row('Komoditas', n.commodity?.name)}
           {row('Wilayah', n.region?.name)}
           {row('Alamat', n.address)}
+          {row(
+            'Status Kepemilikan Lahan',
+            n.landOwnershipStatus === 'RENTED'
+              ? 'Sewa'
+              : n.landOwnershipStatus === 'BORROWED'
+                ? 'Pinjam pakai'
+                : n.landOwnershipStatus === 'OWNED'
+                  ? 'Milik sendiri'
+                  : null,
+          )}
           {row('Luas (Ha)', n.areaHa)}
           {row(
             'Kapasitas',

@@ -69,6 +69,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   /** Eksternal: data & pengajuan milik sendiri */
   [ROLES.PENANGKAR]: [
     PERMISSIONS.DASHBOARD_VIEW,
+    PERMISSIONS.NURSERY_VIEW,
     PERMISSIONS.PRODUCTION_VIEW,
     PERMISSIONS.PRODUCTION_CREATE,
     PERMISSIONS.PRODUCTION_UPDATE,

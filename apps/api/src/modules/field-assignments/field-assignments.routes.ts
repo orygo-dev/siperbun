@@ -59,7 +59,8 @@ fieldAssignmentsRouter.get(
   ),
   async (req, res, next) => {
     try {
-      const item = await fieldAssignmentsService.getById(String(req.params.id));
+      const user = (req as AuthedRequest).user!;
+      const item = await fieldAssignmentsService.getById(String(req.params.id), user);
       return success(res, item, 'Detail penugasan berhasil dimuat');
     } catch (e) {
       next(e);

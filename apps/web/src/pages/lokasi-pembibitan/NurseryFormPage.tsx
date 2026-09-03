@@ -66,6 +66,7 @@ export function NurseryFormPage({ mode }: { mode: 'create' | 'edit' }) {
         regionId: d.regionId ?? '',
         name: d.name,
         address: d.address ?? '',
+        landOwnershipStatus: d.landOwnershipStatus ?? null,
         latitude: d.latitude ?? null,
         longitude: d.longitude ?? null,
         areaHa: d.areaHa ?? null,
@@ -202,6 +203,18 @@ export function NurseryFormPage({ mode }: { mode: 'create' | 'edit' }) {
               className="h-10 w-full rounded-lg border border-border px-3 text-sm"
               {...register('waterSource')}
             />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium">Status Kepemilikan Lahan</label>
+            <select
+              className="h-10 w-full rounded-lg border border-border px-3 text-sm"
+              {...register('landOwnershipStatus')}
+            >
+              <option value="">Pilih...</option>
+              <option value="RENTED">Sewa</option>
+              <option value="BORROWED">Pinjam pakai</option>
+              <option value="OWNED">Milik sendiri</option>
+            </select>
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium">Status</label>

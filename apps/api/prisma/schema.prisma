@@ -22,6 +22,11 @@ enum ApplicationStatus {
   WAITING_RESULT_VALIDATION
   INSPECTION_PASSED
   INSPECTION_FAILED
+  WAITING_LHP_INVOICE
+  WAITING_PAYMENT
+  PAYMENT_VERIFICATION
+  PAYMENT_REJECTED
+  PAYMENT_VERIFIED
   CERTIFICATE_ISSUED_MANUALLY
   WAITING_CERTIFICATE_SCAN
   CERTIFICATE_SCAN_UPLOADED
@@ -62,6 +67,20 @@ enum FindingStatus {
   CLOSED
 }
 
+enum InvoiceStatus {
+  ISSUED
+  PAYMENT_SUBMITTED
+  PAID
+  PAYMENT_REJECTED
+  CANCELLED
+}
+
+enum PaymentProofStatus {
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
 enum ProductionStatus {
   PREPARATION
   SOWING
@@ -98,6 +117,24 @@ enum DocumentKind {
   FOTO
   SERTIFIKAT
   LAINNYA
+}
+
+enum LandOwnershipStatus {
+  RENTED
+  BORROWED
+  OWNED
+}
+
+enum RegistrationDocumentKind {
+  BUSINESS_LICENSE
+  LAND_OWNERSHIP_PROOF
+  NURSERY_PHOTO
+  FACILITIES_PHOTO
+  SOURCE_AGREEMENT
+  WATER_SOURCE_PHOTO
+  BUSINESS_RECOMMENDATION
+  EXPERT_CERTIFICATE
+  WORKFORCE_LIST
 }
 
 enum MapMarkerType {
@@ -149,20 +186,24 @@ model User {
   region   Region?   @relation(fields: [regionId], references: [id])
   producer Producer? @relation(fields: [producerId], references: [id])
 
-  userRoles             UserRole[]
-  refreshTokens         RefreshToken[]
-  fieldAssignments      FieldAssignment[]      @relation("InspectorAssignments")
-  createdAssignments    FieldAssignment[]      @relation("AssignmentCreator")
-  fieldInspections      FieldInspection[]
-  uploadedCertificates  Certificate[]          @relation("CertificateUploader")
-  verifiedCertificates  Certificate[]          @relation("CertificateVerifier")
-  notifications         Notification[]
-  activityLogs          ActivityLog[]
-  auditLogs             AuditLog[]
-  productionLogs        ProductionLog[]
-  storedFiles           StoredFile[]
-  statusChanges         ApplicationStatusHistory[]
-  reviewedRegistrations ProducerRegistrationRequest[] @relation("RegistrationReviewer")
+  userRoles                UserRole[]
+  refreshTokens            RefreshToken[]
+  fieldAssignments         FieldAssignment[]             @relation("InspectorAssignments")
+  createdAssignments       FieldAssignment[]             @relation("AssignmentCreator")
+  fieldInspections         FieldInspection[]
+  uploadedCertificates     Certificate[]                 @relation("CertificateUploader")
+  verifiedCertificates     Certificate[]                 @relation("CertificateVerifier")
+  notifications            Notification[]
+  activityLogs             ActivityLog[]
+  auditLogs                AuditLog[]
+  productionLogs           ProductionLog[]
+  storedFiles              StoredFile[]
+  statusChanges            ApplicationStatusHistory[]
+  reviewedRegistrations    ProducerRegistrationRequest[] @relation("RegistrationReviewer")
+  createdInspectionReports InspectionReport[]            @relation("InspectionReportCreator")
+  issuedInvoices           ApplicationInvoice[]          @relation("InvoiceIssuer")
+  submittedPaymentProofs   PaymentProof[]                @relation("PaymentSubmitter")
+  verifiedPaymentProofs    PaymentProof[]                @relation("PaymentVerifier")
 
   @@index([officeId])
   @@index([regionId])
@@ -172,12 +213,12 @@ model User {
 }
 
 model Role {
-  id          String    @id @default(uuid()) @db.Char(36)
-  slug        String    @unique @db.VarChar(50)
-  name        String    @db.VarChar(100)
-  description String?   @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id          String   @id @default(uuid()) @db.Char(36)
+  slug        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   userRoles       UserRole[]
   rolePermissions RolePermission[]
@@ -227,14 +268,14 @@ model RolePermission {
 }
 
 model RefreshToken {
-  id        String    @id @default(uuid()) @db.Char(36)
-  userId    String    @map("user_id") @db.Char(36)
-  tokenHash String    @map("token_hash") @db.VarChar(255)
-  deviceInfo String?  @map("device_info") @db.VarChar(255)
-  ipAddress String?   @map("ip_address") @db.VarChar(45)
-  expiresAt DateTime  @map("expires_at")
-  revokedAt DateTime? @map("revoked_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(uuid()) @db.Char(36)
+  userId     String    @map("user_id") @db.Char(36)
+  tokenHash  String    @map("token_hash") @db.VarChar(255)
+  deviceInfo String?   @map("device_info") @db.VarChar(255)
+  ipAddress  String?   @map("ip_address") @db.VarChar(45)
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -275,14 +316,15 @@ model Region {
   updatedAt DateTime   @updatedAt @map("updated_at")
   deletedAt DateTime?  @map("deleted_at")
 
-  parent   Region?  @relation("RegionTree", fields: [parentId], references: [id])
-  children Region[] @relation("RegionTree")
-  offices  Office[]
-  users    User[]
-  producers Producer[] @relation("ProducerKabupaten")
-  nurseries NurseryLocation[]
-  seedGardens SeedGarden[]
-  registrationRequests ProducerRegistrationRequest[]
+  parent                      Region?                       @relation("RegionTree", fields: [parentId], references: [id])
+  children                    Region[]                      @relation("RegionTree")
+  offices                     Office[]
+  users                       User[]
+  producers                   Producer[]                    @relation("ProducerKabupaten")
+  nurseries                   NurseryLocation[]
+  seedGardens                 SeedGarden[]
+  registrationRequests        ProducerRegistrationRequest[] @relation("RegistrationOfficeKabupaten")
+  nurseryRegistrationRequests ProducerRegistrationRequest[] @relation("RegistrationNurseryKabupaten")
 
   @@index([parentId])
   @@index([type])
@@ -290,41 +332,41 @@ model Region {
 }
 
 model Commodity {
-  id        String    @id @default(uuid()) @db.Char(36)
-  code      String    @unique @db.VarChar(20)
-  name      String    @db.VarChar(100)
-  scientificName String? @map("scientific_name") @db.VarChar(150)
-  unit      String    @default("batang") @db.VarChar(30)
-  isActive  Boolean   @default(true) @map("is_active")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  id             String    @id @default(uuid()) @db.Char(36)
+  code           String    @unique @db.VarChar(20)
+  name           String    @db.VarChar(100)
+  scientificName String?   @map("scientific_name") @db.VarChar(150)
+  unit           String    @default("batang") @db.VarChar(30)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
 
-  varieties      Variety[]
-  seedStandards  SeedStandard[]
-  seedGardens    SeedGarden[]
-  seedSources    SeedSource[]
+  varieties         Variety[]
+  seedStandards     SeedStandard[]
+  seedGardens       SeedGarden[]
+  seedSources       SeedSource[]
   productionBatches ProductionBatch[]
-  applications   CertificationApplication[]
-  nurseries      NurseryLocation[]
-  publicListings PublicListing[]
+  applications      CertificationApplication[]
+  nurseries         NurseryLocation[]
+  publicListings    PublicListing[]
 
   @@map("commodities")
 }
 
 model Variety {
-  id           String    @id @default(uuid()) @db.Char(36)
-  commodityId  String    @map("commodity_id") @db.Char(36)
-  code         String    @db.VarChar(30)
-  name         String    @db.VarChar(100)
-  clone        String?   @db.VarChar(100)
-  description  String?   @db.Text
-  isActive     Boolean   @default(true) @map("is_active")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
+  id          String    @id @default(uuid()) @db.Char(36)
+  commodityId String    @map("commodity_id") @db.Char(36)
+  code        String    @db.VarChar(30)
+  name        String    @db.VarChar(100)
+  clone       String?   @db.VarChar(100)
+  description String?   @db.Text
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-  commodity         Commodity @relation(fields: [commodityId], references: [id])
+  commodity         Commodity                  @relation(fields: [commodityId], references: [id])
   seedGardens       SeedGarden[]
   seedSources       SeedSource[]
   productionBatches ProductionBatch[]
@@ -356,30 +398,32 @@ model SeedStandard {
 // ─── Producer Domain ─────────────────────────────────────────────────────────
 
 model Producer {
-  id                 String         @id @default(uuid()) @db.Char(36)
-  registrationNumber String         @unique @map("registration_number") @db.VarChar(50)
-  businessName       String         @map("business_name") @db.VarChar(191)
-  businessType       String?        @map("business_type") @db.VarChar(50)
-  ownerName          String         @map("owner_name") @db.VarChar(191)
-  nik                String?        @db.VarChar(20)
-  nib                String?        @db.VarChar(50)
-  phone              String?        @db.VarChar(30)
-  email              String?        @db.VarChar(191)
-  address            String?        @db.Text
-  provinceId         String?        @map("province_id") @db.Char(36)
-  kabupatenId        String?        @map("kabupaten_id") @db.Char(36)
-  kecamatan          String?        @db.VarChar(100)
-  desa               String?        @db.VarChar(100)
-  latitude           Decimal?       @db.Decimal(10, 7)
-  longitude          Decimal?       @db.Decimal(10, 7)
-  productionCapacity BigInt?        @map("production_capacity")
-  status             ProducerStatus @default(PENDING_VERIFICATION)
-  isActive           Boolean        @default(true) @map("is_active")
-  notes              String?        @db.Text
-  verifiedAt         DateTime?      @map("verified_at")
-  createdAt          DateTime       @default(now()) @map("created_at")
-  updatedAt          DateTime       @updatedAt @map("updated_at")
-  deletedAt          DateTime?      @map("deleted_at")
+  id                  String               @id @default(uuid()) @db.Char(36)
+  registrationNumber  String               @unique @map("registration_number") @db.VarChar(50)
+  businessName        String               @map("business_name") @db.VarChar(191)
+  businessType        String?              @map("business_type") @db.VarChar(50)
+  ownerName           String               @map("owner_name") @db.VarChar(191)
+  nik                 String?              @db.VarChar(20)
+  nib                 String?              @db.VarChar(50)
+  phone               String?              @db.VarChar(30)
+  email               String?              @db.VarChar(191)
+  address             String?              @db.Text
+  nurseryAddress      String?              @map("nursery_address") @db.Text
+  landOwnershipStatus LandOwnershipStatus? @map("land_ownership_status")
+  provinceId          String?              @map("province_id") @db.Char(36)
+  kabupatenId         String?              @map("kabupaten_id") @db.Char(36)
+  kecamatan           String?              @db.VarChar(100)
+  desa                String?              @db.VarChar(100)
+  latitude            Decimal?             @db.Decimal(10, 7)
+  longitude           Decimal?             @db.Decimal(10, 7)
+  productionCapacity  BigInt?              @map("production_capacity")
+  status              ProducerStatus       @default(PENDING_VERIFICATION)
+  isActive            Boolean              @default(true) @map("is_active")
+  notes               String?              @db.Text
+  verifiedAt          DateTime?            @map("verified_at")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  deletedAt           DateTime?            @map("deleted_at")
 
   kabupaten Region? @relation("ProducerKabupaten", fields: [kabupatenId], references: [id])
 
@@ -422,28 +466,29 @@ model ProducerDocument {
 }
 
 model NurseryLocation {
-  id           String    @id @default(uuid()) @db.Char(36)
-  producerId   String    @map("producer_id") @db.Char(36)
-  commodityId  String?   @map("commodity_id") @db.Char(36)
-  regionId     String?   @map("region_id") @db.Char(36)
-  name         String    @db.VarChar(191)
-  address      String?   @db.Text
-  latitude     Decimal?  @db.Decimal(10, 7)
-  longitude    Decimal?  @db.Decimal(10, 7)
-  areaHa       Decimal?  @map("area_ha") @db.Decimal(12, 4)
-  capacity     BigInt?
-  waterSource  String?   @map("water_source") @db.VarChar(100)
-  facilities   String?   @db.Text
-  status       String    @default("ACTIVE") @db.VarChar(30)
-  markerType   MapMarkerType @default(NURSERY_ACTIVE) @map("marker_type")
-  notes        String?   @db.Text
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
+  id                  String               @id @default(uuid()) @db.Char(36)
+  producerId          String               @map("producer_id") @db.Char(36)
+  commodityId         String?              @map("commodity_id") @db.Char(36)
+  regionId            String?              @map("region_id") @db.Char(36)
+  name                String               @db.VarChar(191)
+  address             String?              @db.Text
+  landOwnershipStatus LandOwnershipStatus? @map("land_ownership_status")
+  latitude            Decimal?             @db.Decimal(10, 7)
+  longitude           Decimal?             @db.Decimal(10, 7)
+  areaHa              Decimal?             @map("area_ha") @db.Decimal(12, 4)
+  capacity            BigInt?
+  waterSource         String?              @map("water_source") @db.VarChar(100)
+  facilities          String?              @db.Text
+  status              String               @default("ACTIVE") @db.VarChar(30)
+  markerType          MapMarkerType        @default(NURSERY_ACTIVE) @map("marker_type")
+  notes               String?              @db.Text
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  deletedAt           DateTime?            @map("deleted_at")
 
-  producer          Producer  @relation(fields: [producerId], references: [id])
-  commodity         Commodity? @relation(fields: [commodityId], references: [id])
-  region            Region?   @relation(fields: [regionId], references: [id])
+  producer          Producer                   @relation(fields: [producerId], references: [id])
+  commodity         Commodity?                 @relation(fields: [commodityId], references: [id])
+  region            Region?                    @relation(fields: [regionId], references: [id])
   documents         NurseryDocument[]
   productionBatches ProductionBatch[]
   applications      CertificationApplication[]
@@ -473,33 +518,33 @@ model NurseryDocument {
 }
 
 model SeedGarden {
-  id               String    @id @default(uuid()) @db.Char(36)
-  producerId       String?   @map("producer_id") @db.Char(36)
-  commodityId      String    @map("commodity_id") @db.Char(36)
-  varietyId        String?   @map("variety_id") @db.Char(36)
-  regionId         String?   @map("region_id") @db.Char(36)
-  name             String    @db.VarChar(191)
-  ownerName        String?   @map("owner_name") @db.VarChar(191)
-  address          String?   @db.Text
-  latitude         Decimal?  @db.Decimal(10, 7)
-  longitude        Decimal?  @db.Decimal(10, 7)
-  areaHa           Decimal?  @map("area_ha") @db.Decimal(12, 4)
-  clone            String?   @db.VarChar(100)
-  plantingYear     Int?      @map("planting_year")
-  motherTreeCount  Int?      @map("mother_tree_count")
-  estimatedYield   BigInt?   @map("estimated_yield")
-  decreeNumber     String?   @map("decree_number") @db.VarChar(100)
-  decreeDate       DateTime? @map("decree_date") @db.Date
-  validUntil       DateTime? @map("valid_until") @db.Date
-  status           String    @default("ACTIVE") @db.VarChar(30)
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  deletedAt        DateTime? @map("deleted_at")
+  id              String    @id @default(uuid()) @db.Char(36)
+  producerId      String?   @map("producer_id") @db.Char(36)
+  commodityId     String    @map("commodity_id") @db.Char(36)
+  varietyId       String?   @map("variety_id") @db.Char(36)
+  regionId        String?   @map("region_id") @db.Char(36)
+  name            String    @db.VarChar(191)
+  ownerName       String?   @map("owner_name") @db.VarChar(191)
+  address         String?   @db.Text
+  latitude        Decimal?  @db.Decimal(10, 7)
+  longitude       Decimal?  @db.Decimal(10, 7)
+  areaHa          Decimal?  @map("area_ha") @db.Decimal(12, 4)
+  clone           String?   @db.VarChar(100)
+  plantingYear    Int?      @map("planting_year")
+  motherTreeCount Int?      @map("mother_tree_count")
+  estimatedYield  BigInt?   @map("estimated_yield")
+  decreeNumber    String?   @map("decree_number") @db.VarChar(100)
+  decreeDate      DateTime? @map("decree_date") @db.Date
+  validUntil      DateTime? @map("valid_until") @db.Date
+  status          String    @default("ACTIVE") @db.VarChar(30)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
 
-  producer    Producer?  @relation(fields: [producerId], references: [id])
-  commodity   Commodity  @relation(fields: [commodityId], references: [id])
-  variety     Variety?   @relation(fields: [varietyId], references: [id])
-  region      Region?    @relation(fields: [regionId], references: [id])
+  producer    Producer?            @relation(fields: [producerId], references: [id])
+  commodity   Commodity            @relation(fields: [commodityId], references: [id])
+  variety     Variety?             @relation(fields: [varietyId], references: [id])
+  region      Region?              @relation(fields: [regionId], references: [id])
   documents   SeedGardenDocument[]
   seedSources SeedSource[]
 
@@ -546,10 +591,10 @@ model SeedSource {
   updatedAt            DateTime  @updatedAt @map("updated_at")
   deletedAt            DateTime? @map("deleted_at")
 
-  producer          Producer   @relation(fields: [producerId], references: [id])
-  seedGarden        SeedGarden? @relation(fields: [seedGardenId], references: [id])
-  commodity         Commodity  @relation(fields: [commodityId], references: [id])
-  variety           Variety?   @relation(fields: [varietyId], references: [id])
+  producer          Producer             @relation(fields: [producerId], references: [id])
+  seedGarden        SeedGarden?          @relation(fields: [seedGardenId], references: [id])
+  commodity         Commodity            @relation(fields: [commodityId], references: [id])
+  variety           Variety?             @relation(fields: [varietyId], references: [id])
   documents         SeedSourceDocument[]
   productionBatches ProductionBatch[]
 
@@ -578,34 +623,34 @@ model SeedSourceDocument {
 // ─── Production ──────────────────────────────────────────────────────────────
 
 model ProductionBatch {
-  id                String           @id @default(uuid()) @db.Char(36)
-  batchNumber       String           @unique @map("batch_number") @db.VarChar(50)
-  producerId        String           @map("producer_id") @db.Char(36)
-  nurseryId         String?          @map("nursery_id") @db.Char(36)
-  seedSourceId      String?          @map("seed_source_id") @db.Char(36)
-  commodityId       String           @map("commodity_id") @db.Char(36)
-  varietyId         String?          @map("variety_id") @db.Char(36)
-  startedAt         DateTime?        @map("started_at") @db.Date
-  initialCount      BigInt           @default(0) @map("initial_count")
-  grownCount        BigInt           @default(0) @map("grown_count")
-  deadCount         BigInt           @default(0) @map("dead_count")
-  rejectedCount     BigInt           @default(0) @map("rejected_count")
-  activeCount       BigInt           @default(0) @map("active_count")
-  readyCount        BigInt           @default(0) @map("ready_count")
-  status            ProductionStatus @default(PREPARATION)
-  notes             String?          @db.Text
-  createdAt         DateTime         @default(now()) @map("created_at")
-  updatedAt         DateTime         @updatedAt @map("updated_at")
-  deletedAt         DateTime?        @map("deleted_at")
+  id            String           @id @default(uuid()) @db.Char(36)
+  batchNumber   String           @unique @map("batch_number") @db.VarChar(50)
+  producerId    String           @map("producer_id") @db.Char(36)
+  nurseryId     String?          @map("nursery_id") @db.Char(36)
+  seedSourceId  String?          @map("seed_source_id") @db.Char(36)
+  commodityId   String           @map("commodity_id") @db.Char(36)
+  varietyId     String?          @map("variety_id") @db.Char(36)
+  startedAt     DateTime?        @map("started_at") @db.Date
+  initialCount  BigInt           @default(0) @map("initial_count")
+  grownCount    BigInt           @default(0) @map("grown_count")
+  deadCount     BigInt           @default(0) @map("dead_count")
+  rejectedCount BigInt           @default(0) @map("rejected_count")
+  activeCount   BigInt           @default(0) @map("active_count")
+  readyCount    BigInt           @default(0) @map("ready_count")
+  status        ProductionStatus @default(PREPARATION)
+  notes         String?          @db.Text
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  deletedAt     DateTime?        @map("deleted_at")
 
-  producer     Producer         @relation(fields: [producerId], references: [id])
-  nursery      NurseryLocation? @relation(fields: [nurseryId], references: [id])
-  seedSource   SeedSource?      @relation(fields: [seedSourceId], references: [id])
-  commodity    Commodity        @relation(fields: [commodityId], references: [id])
-  variety      Variety?         @relation(fields: [varietyId], references: [id])
-  logs         ProductionLog[]
-  applications CertificationApplication[]
-  certificates Certificate[]
+  producer      Producer                   @relation(fields: [producerId], references: [id])
+  nursery       NurseryLocation?           @relation(fields: [nurseryId], references: [id])
+  seedSource    SeedSource?                @relation(fields: [seedSourceId], references: [id])
+  commodity     Commodity                  @relation(fields: [commodityId], references: [id])
+  variety       Variety?                   @relation(fields: [varietyId], references: [id])
+  logs          ProductionLog[]
+  applications  CertificationApplication[]
+  certificates  Certificate[]
   distributions SeedDistribution[]
 
   @@index([producerId])
@@ -636,33 +681,35 @@ model ProductionLog {
 // ─── Certification ───────────────────────────────────────────────────────────
 
 model CertificationApplication {
-  id                 String            @id @default(uuid()) @db.Char(36)
-  applicationNumber  String            @unique @map("application_number") @db.VarChar(50)
-  producerId         String            @map("producer_id") @db.Char(36)
-  batchId            String?           @map("batch_id") @db.Char(36)
-  commodityId        String            @map("commodity_id") @db.Char(36)
-  varietyId          String?           @map("variety_id") @db.Char(36)
-  nurseryId          String?           @map("nursery_id") @db.Char(36)
-  seedlingCount      BigInt            @map("seedling_count")
-  submittedAt        DateTime?         @map("submitted_at")
-  readyAt            DateTime?         @map("ready_at") @db.Date
-  inspectionType     String?           @map("inspection_type") @db.VarChar(50)
-  status             ApplicationStatus @default(DRAFT)
-  notes              String?           @db.Text
-  createdAt          DateTime          @default(now()) @map("created_at")
-  updatedAt          DateTime          @updatedAt @map("updated_at")
-  deletedAt          DateTime?         @map("deleted_at")
+  id                String            @id @default(uuid()) @db.Char(36)
+  applicationNumber String            @unique @map("application_number") @db.VarChar(50)
+  producerId        String            @map("producer_id") @db.Char(36)
+  batchId           String?           @map("batch_id") @db.Char(36)
+  commodityId       String            @map("commodity_id") @db.Char(36)
+  varietyId         String?           @map("variety_id") @db.Char(36)
+  nurseryId         String?           @map("nursery_id") @db.Char(36)
+  seedlingCount     BigInt            @map("seedling_count")
+  submittedAt       DateTime?         @map("submitted_at")
+  readyAt           DateTime?         @map("ready_at") @db.Date
+  inspectionType    String?           @map("inspection_type") @db.VarChar(50)
+  status            ApplicationStatus @default(DRAFT)
+  notes             String?           @db.Text
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  deletedAt         DateTime?         @map("deleted_at")
 
-  producer    Producer          @relation(fields: [producerId], references: [id])
-  batch       ProductionBatch?  @relation(fields: [batchId], references: [id])
-  commodity   Commodity         @relation(fields: [commodityId], references: [id])
-  variety     Variety?          @relation(fields: [varietyId], references: [id])
-  nursery     NurseryLocation?  @relation(fields: [nurseryId], references: [id])
-  documents   ApplicationDocument[]
-  statusHistory ApplicationStatusHistory[]
-  assignments FieldAssignment[]
-  findings    InspectionFinding[]
-  certificate Certificate?
+  producer         Producer                   @relation(fields: [producerId], references: [id])
+  batch            ProductionBatch?           @relation(fields: [batchId], references: [id])
+  commodity        Commodity                  @relation(fields: [commodityId], references: [id])
+  variety          Variety?                   @relation(fields: [varietyId], references: [id])
+  nursery          NurseryLocation?           @relation(fields: [nurseryId], references: [id])
+  documents        ApplicationDocument[]
+  statusHistory    ApplicationStatusHistory[]
+  assignments      FieldAssignment[]
+  findings         InspectionFinding[]
+  certificate      Certificate?
+  inspectionReport InspectionReport?
+  invoice          ApplicationInvoice?
 
   @@index([producerId])
   @@index([status])
@@ -689,13 +736,13 @@ model ApplicationDocument {
 }
 
 model ApplicationStatusHistory {
-  id            String            @id @default(uuid()) @db.Char(36)
-  applicationId String            @map("application_id") @db.Char(36)
+  id            String             @id @default(uuid()) @db.Char(36)
+  applicationId String             @map("application_id") @db.Char(36)
   fromStatus    ApplicationStatus? @map("from_status")
-  toStatus      ApplicationStatus @map("to_status")
-  changedById   String?           @map("changed_by_id") @db.Char(36)
-  notes         String?           @db.Text
-  createdAt     DateTime          @default(now()) @map("created_at")
+  toStatus      ApplicationStatus  @map("to_status")
+  changedById   String?            @map("changed_by_id") @db.Char(36)
+  notes         String?            @db.Text
+  createdAt     DateTime           @default(now()) @map("created_at")
 
   application CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   changedBy   User?                    @relation(fields: [changedById], references: [id])
@@ -704,23 +751,90 @@ model ApplicationStatusHistory {
   @@map("application_status_histories")
 }
 
+model InspectionReport {
+  id            String   @id @default(uuid()) @db.Char(36)
+  applicationId String   @unique @map("application_id") @db.Char(36)
+  reportNumber  String   @unique @map("report_number") @db.VarChar(50)
+  fileId        String   @map("file_id") @db.Char(36)
+  notes         String?  @db.Text
+  createdById   String?  @map("created_by_id") @db.Char(36)
+  issuedAt      DateTime @default(now()) @map("issued_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  application CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  file        StoredFile               @relation(fields: [fileId], references: [id])
+  createdBy   User?                    @relation("InspectionReportCreator", fields: [createdById], references: [id])
+
+  @@index([fileId])
+  @@map("inspection_reports")
+}
+
+model ApplicationInvoice {
+  id                  String        @id @default(uuid()) @db.Char(36)
+  applicationId       String        @unique @map("application_id") @db.Char(36)
+  invoiceNumber       String        @unique @map("invoice_number") @db.VarChar(50)
+  amount              Decimal       @db.Decimal(15, 2)
+  dueDate             DateTime      @map("due_date") @db.Date
+  paymentInstructions String?       @map("payment_instructions") @db.Text
+  status              InvoiceStatus @default(ISSUED)
+  issuedById          String?       @map("issued_by_id") @db.Char(36)
+  issuedAt            DateTime      @default(now()) @map("issued_at")
+  paidAt              DateTime?     @map("paid_at")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  deletedAt           DateTime?     @map("deleted_at")
+
+  application   CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  issuedBy      User?                    @relation("InvoiceIssuer", fields: [issuedById], references: [id])
+  paymentProofs PaymentProof[]
+
+  @@index([status])
+  @@index([dueDate])
+  @@map("application_invoices")
+}
+
+model PaymentProof {
+  id                String             @id @default(uuid()) @db.Char(36)
+  invoiceId         String             @map("invoice_id") @db.Char(36)
+  fileId            String             @map("file_id") @db.Char(36)
+  submittedById     String?            @map("submitted_by_id") @db.Char(36)
+  verifiedById      String?            @map("verified_by_id") @db.Char(36)
+  status            PaymentProofStatus @default(SUBMITTED)
+  notes             String?            @db.Text
+  verificationNotes String?            @map("verification_notes") @db.Text
+  submittedAt       DateTime           @default(now()) @map("submitted_at")
+  verifiedAt        DateTime?          @map("verified_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  deletedAt         DateTime?          @map("deleted_at")
+
+  invoice     ApplicationInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  file        StoredFile         @relation(fields: [fileId], references: [id])
+  submittedBy User?              @relation("PaymentSubmitter", fields: [submittedById], references: [id])
+  verifiedBy  User?              @relation("PaymentVerifier", fields: [verifiedById], references: [id])
+
+  @@index([invoiceId, status])
+  @@map("payment_proofs")
+}
+
 // ─── Inspection ──────────────────────────────────────────────────────────────
 
 model FieldAssignment {
-  id            String           @id @default(uuid()) @db.Char(36)
-  assignmentNumber String        @unique @map("assignment_number") @db.VarChar(50)
-  applicationId String           @map("application_id") @db.Char(36)
-  inspectorId   String           @map("inspector_id") @db.Char(36)
-  createdById   String?          @map("created_by_id") @db.Char(36)
-  scheduledDate DateTime         @map("scheduled_date") @db.Date
-  scheduledTime String?          @map("scheduled_time") @db.VarChar(10)
-  locationNotes String?          @map("location_notes") @db.Text
-  instructions  String?          @db.Text
-  status        AssignmentStatus @default(SCHEDULED)
-  completedAt   DateTime?        @map("completed_at")
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
-  deletedAt     DateTime?        @map("deleted_at")
+  id               String           @id @default(uuid()) @db.Char(36)
+  assignmentNumber String           @unique @map("assignment_number") @db.VarChar(50)
+  applicationId    String           @map("application_id") @db.Char(36)
+  inspectorId      String           @map("inspector_id") @db.Char(36)
+  createdById      String?          @map("created_by_id") @db.Char(36)
+  scheduledDate    DateTime         @map("scheduled_date") @db.Date
+  scheduledTime    String?          @map("scheduled_time") @db.VarChar(10)
+  locationNotes    String?          @map("location_notes") @db.Text
+  instructions     String?          @db.Text
+  status           AssignmentStatus @default(SCHEDULED)
+  completedAt      DateTime?        @map("completed_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  deletedAt        DateTime?        @map("deleted_at")
 
   application CertificationApplication @relation(fields: [applicationId], references: [id])
   inspector   User                     @relation("InspectorAssignments", fields: [inspectorId], references: [id])
@@ -820,18 +934,18 @@ model InspectionPhoto {
 }
 
 model InspectionFinding {
-  id            String        @id @default(uuid()) @db.Char(36)
-  applicationId String?       @map("application_id") @db.Char(36)
-  inspectionId  String?       @map("inspection_id") @db.Char(36)
-  findingType   String        @map("finding_type") @db.VarChar(100)
-  description   String        @db.Text
-  severity      Severity      @default(MEDIUM)
-  recommendation String?      @db.Text
-  dueDate       DateTime?     @map("due_date") @db.Date
-  status        FindingStatus @default(OPEN)
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  deletedAt     DateTime?     @map("deleted_at")
+  id             String        @id @default(uuid()) @db.Char(36)
+  applicationId  String?       @map("application_id") @db.Char(36)
+  inspectionId   String?       @map("inspection_id") @db.Char(36)
+  findingType    String        @map("finding_type") @db.VarChar(100)
+  description    String        @db.Text
+  severity       Severity      @default(MEDIUM)
+  recommendation String?       @db.Text
+  dueDate        DateTime?     @map("due_date") @db.Date
+  status         FindingStatus @default(OPEN)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
 
   application       CertificationApplication? @relation(fields: [applicationId], references: [id])
   inspection        FieldInspection?          @relation(fields: [inspectionId], references: [id])
@@ -864,35 +978,35 @@ model CorrectiveAction {
 // ─── Certificate ─────────────────────────────────────────────────────────────
 
 model Certificate {
-  id                    String            @id @default(uuid()) @db.Char(36)
-  applicationId         String            @unique @map("application_id") @db.Char(36)
-  producerId            String            @map("producer_id") @db.Char(36)
-  batchId               String?           @map("batch_id") @db.Char(36)
-  certificateNumber     String            @unique @map("certificate_number") @db.VarChar(100)
-  issuedAt              DateTime?         @map("issued_at") @db.Date
-  expiresAt             DateTime?         @map("expires_at") @db.Date
-  certifiedCount        BigInt            @default(0) @map("certified_count")
-  signatoryName         String?           @map("signatory_name") @db.VarChar(191)
-  signatoryTitle        String?           @map("signatory_title") @db.VarChar(191)
-  status                CertificateStatus @default(WAITING_ISSUANCE)
-  currentFileId         String?           @map("current_file_id") @db.Char(36)
-  uploadedById          String?           @map("uploaded_by_id") @db.Char(36)
-  verifiedById          String?           @map("verified_by_id") @db.Char(36)
-  uploadedAt            DateTime?         @map("uploaded_at")
-  verifiedAt            DateTime?         @map("verified_at")
-  notes                 String?           @db.Text
-  createdAt             DateTime          @default(now()) @map("created_at")
-  updatedAt             DateTime          @updatedAt @map("updated_at")
-  deletedAt             DateTime?         @map("deleted_at")
+  id                String            @id @default(uuid()) @db.Char(36)
+  applicationId     String            @unique @map("application_id") @db.Char(36)
+  producerId        String            @map("producer_id") @db.Char(36)
+  batchId           String?           @map("batch_id") @db.Char(36)
+  certificateNumber String            @unique @map("certificate_number") @db.VarChar(100)
+  issuedAt          DateTime?         @map("issued_at") @db.Date
+  expiresAt         DateTime?         @map("expires_at") @db.Date
+  certifiedCount    BigInt            @default(0) @map("certified_count")
+  signatoryName     String?           @map("signatory_name") @db.VarChar(191)
+  signatoryTitle    String?           @map("signatory_title") @db.VarChar(191)
+  status            CertificateStatus @default(WAITING_ISSUANCE)
+  currentFileId     String?           @map("current_file_id") @db.Char(36)
+  uploadedById      String?           @map("uploaded_by_id") @db.Char(36)
+  verifiedById      String?           @map("verified_by_id") @db.Char(36)
+  uploadedAt        DateTime?         @map("uploaded_at")
+  verifiedAt        DateTime?         @map("verified_at")
+  notes             String?           @db.Text
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  deletedAt         DateTime?         @map("deleted_at")
 
-  application CertificationApplication @relation(fields: [applicationId], references: [id])
-  producer    Producer                 @relation(fields: [producerId], references: [id])
-  batch       ProductionBatch?         @relation(fields: [batchId], references: [id])
-  currentFile StoredFile?              @relation("CertificateCurrentFile", fields: [currentFileId], references: [id])
-  uploadedBy  User?                    @relation("CertificateUploader", fields: [uploadedById], references: [id])
-  verifiedBy  User?                    @relation("CertificateVerifier", fields: [verifiedById], references: [id])
-  versions    CertificateVersion[]
-  labels      SeedLabel[]
+  application   CertificationApplication @relation(fields: [applicationId], references: [id])
+  producer      Producer                 @relation(fields: [producerId], references: [id])
+  batch         ProductionBatch?         @relation(fields: [batchId], references: [id])
+  currentFile   StoredFile?              @relation("CertificateCurrentFile", fields: [currentFileId], references: [id])
+  uploadedBy    User?                    @relation("CertificateUploader", fields: [uploadedById], references: [id])
+  verifiedBy    User?                    @relation("CertificateVerifier", fields: [verifiedById], references: [id])
+  versions      CertificateVersion[]
+  labels        SeedLabel[]
   distributions SeedDistribution[]
 
   @@index([status])
@@ -918,24 +1032,24 @@ model CertificateVersion {
 // ─── Labels & Distribution ───────────────────────────────────────────────────
 
 model SeedLabel {
-  id            String    @id @default(uuid()) @db.Char(36)
-  certificateId String    @map("certificate_id") @db.Char(36)
-  serialStart   String    @map("serial_start") @db.VarChar(50)
-  serialEnd     String    @map("serial_end") @db.VarChar(50)
-  quantity      Int
-  receivedAt    DateTime? @map("received_at") @db.Date
-  handedOverAt  DateTime? @map("handed_over_at") @db.Date
-  recipient     String?   @db.VarChar(191)
-  usedCount     Int       @default(0) @map("used_count")
-  damagedCount  Int       @default(0) @map("damaged_count")
-  cancelledCount Int      @default(0) @map("cancelled_count")
-  remainingCount Int      @default(0) @map("remaining_count")
-  notes         String?   @db.Text
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  deletedAt     DateTime? @map("deleted_at")
+  id             String    @id @default(uuid()) @db.Char(36)
+  certificateId  String    @map("certificate_id") @db.Char(36)
+  serialStart    String    @map("serial_start") @db.VarChar(50)
+  serialEnd      String    @map("serial_end") @db.VarChar(50)
+  quantity       Int
+  receivedAt     DateTime? @map("received_at") @db.Date
+  handedOverAt   DateTime? @map("handed_over_at") @db.Date
+  recipient      String?   @db.VarChar(191)
+  usedCount      Int       @default(0) @map("used_count")
+  damagedCount   Int       @default(0) @map("damaged_count")
+  cancelledCount Int       @default(0) @map("cancelled_count")
+  remainingCount Int       @default(0) @map("remaining_count")
+  notes          String?   @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
 
-  certificate   Certificate @relation(fields: [certificateId], references: [id])
+  certificate   Certificate         @relation(fields: [certificateId], references: [id])
   distributions LabelDistribution[]
 
   @@index([certificateId])
@@ -959,20 +1073,20 @@ model LabelDistribution {
 }
 
 model SeedDistribution {
-  id              String    @id @default(uuid()) @db.Char(36)
-  producerId      String    @map("producer_id") @db.Char(36)
-  certificateId   String?   @map("certificate_id") @db.Char(36)
-  batchId         String?   @map("batch_id") @db.Char(36)
-  buyerName       String    @map("buyer_name") @db.VarChar(191)
-  buyerAddress    String?   @map("buyer_address") @db.Text
-  destinationKab  String?   @map("destination_kab") @db.VarChar(100)
-  quantity        BigInt
-  distributedAt   DateTime  @map("distributed_at") @db.Date
-  deliveryNoteNo  String?   @map("delivery_note_no") @db.VarChar(100)
-  notes           String?   @db.Text
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  deletedAt       DateTime? @map("deleted_at")
+  id             String    @id @default(uuid()) @db.Char(36)
+  producerId     String    @map("producer_id") @db.Char(36)
+  certificateId  String?   @map("certificate_id") @db.Char(36)
+  batchId        String?   @map("batch_id") @db.Char(36)
+  buyerName      String    @map("buyer_name") @db.VarChar(191)
+  buyerAddress   String?   @map("buyer_address") @db.Text
+  destinationKab String?   @map("destination_kab") @db.VarChar(100)
+  quantity       BigInt
+  distributedAt  DateTime  @map("distributed_at") @db.Date
+  deliveryNoteNo String?   @map("delivery_note_no") @db.VarChar(100)
+  notes          String?   @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
 
   producer    Producer         @relation(fields: [producerId], references: [id])
   certificate Certificate?     @relation(fields: [certificateId], references: [id])
@@ -1046,15 +1160,15 @@ model Notification {
 }
 
 model ActivityLog {
-  id        String   @id @default(uuid()) @db.Char(36)
-  userId    String?  @map("user_id") @db.Char(36)
-  type      String   @db.VarChar(50)
-  title     String   @db.VarChar(255)
-  description String? @db.Text
-  entityType String? @map("entity_type") @db.VarChar(50)
-  entityId  String?  @map("entity_id") @db.Char(36)
-  meta      Json?
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid()) @db.Char(36)
+  userId      String?  @map("user_id") @db.Char(36)
+  type        String   @db.VarChar(50)
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  entityType  String?  @map("entity_type") @db.VarChar(50)
+  entityId    String?  @map("entity_id") @db.Char(36)
+  meta        Json?
+  createdAt   DateTime @default(now()) @map("created_at")
 
   user User? @relation(fields: [userId], references: [id])
 
@@ -1136,10 +1250,10 @@ model PublicListing {
   updatedAt    DateTime            @updatedAt @map("updated_at")
   deletedAt    DateTime?           @map("deleted_at")
 
-  producer  Producer              @relation(fields: [producerId], references: [id])
-  nursery   NurseryLocation?      @relation(fields: [nurseryId], references: [id])
-  commodity Commodity             @relation(fields: [commodityId], references: [id])
-  variety   Variety?              @relation(fields: [varietyId], references: [id])
+  producer  Producer             @relation(fields: [producerId], references: [id])
+  nursery   NurseryLocation?     @relation(fields: [nurseryId], references: [id])
+  commodity Commodity            @relation(fields: [commodityId], references: [id])
+  variety   Variety?             @relation(fields: [varietyId], references: [id])
   photos    PublicListingPhoto[]
 
   @@index([status, publishedAt])
@@ -1166,35 +1280,59 @@ model PublicListingPhoto {
 }
 
 model ProducerRegistrationRequest {
-  id                String                      @id @default(uuid()) @db.Char(36)
-  businessName      String                      @map("business_name") @db.VarChar(191)
-  ownerName         String                      @map("owner_name") @db.VarChar(191)
-  nik               String?                     @db.VarChar(20)
-  phone             String                      @db.VarChar(30)
-  email             String?                     @db.VarChar(191)
-  address           String?                     @db.Text
-  kabupatenId       String?                     @map("kabupaten_id") @db.Char(36)
-  kecamatan         String?                     @db.VarChar(100)
-  desa              String?                     @db.VarChar(100)
-  latitude          Decimal?                    @db.Decimal(10, 7)
-  longitude         Decimal?                    @db.Decimal(10, 7)
-  commodityInterest String?                     @map("commodity_interest") @db.VarChar(255)
-  notes             String?                     @db.Text
-  status            ProducerRegistrationStatus  @default(SUBMITTED)
-  reviewedById      String?                     @map("reviewed_by_id") @db.Char(36)
-  reviewedAt        DateTime?                   @map("reviewed_at")
-  reviewNotes       String?                     @map("review_notes") @db.Text
-  createdProducerId String?                     @map("created_producer_id") @db.Char(36)
-  createdAt         DateTime                    @default(now()) @map("created_at")
-  updatedAt         DateTime                    @updatedAt @map("updated_at")
+  id                  String                     @id @default(uuid()) @db.Char(36)
+  businessName        String                     @map("business_name") @db.VarChar(191)
+  ownerName           String                     @map("owner_name") @db.VarChar(191)
+  nik                 String?                    @db.VarChar(20)
+  phone               String                     @db.VarChar(30)
+  email               String?                    @db.VarChar(191)
+  passwordHash        String?                    @map("password_hash") @db.VarChar(255)
+  address             String?                    @db.Text
+  nurseryAddress      String?                    @map("nursery_address") @db.Text
+  landOwnershipStatus LandOwnershipStatus?       @map("land_ownership_status")
+  kabupatenId         String?                    @map("kabupaten_id") @db.Char(36)
+  nurseryKabupatenId  String?                    @map("nursery_kabupaten_id") @db.Char(36)
+  kecamatan           String?                    @db.VarChar(100)
+  desa                String?                    @db.VarChar(100)
+  latitude            Decimal?                   @db.Decimal(10, 7)
+  longitude           Decimal?                   @db.Decimal(10, 7)
+  commodityInterest   String?                    @map("commodity_interest") @db.VarChar(255)
+  notes               String?                    @db.Text
+  status              ProducerRegistrationStatus @default(SUBMITTED)
+  reviewedById        String?                    @map("reviewed_by_id") @db.Char(36)
+  reviewedAt          DateTime?                  @map("reviewed_at")
+  reviewNotes         String?                    @map("review_notes") @db.Text
+  createdProducerId   String?                    @map("created_producer_id") @db.Char(36)
+  createdAt           DateTime                   @default(now()) @map("created_at")
+  updatedAt           DateTime                   @updatedAt @map("updated_at")
 
-  kabupaten       Region?   @relation(fields: [kabupatenId], references: [id])
-  reviewedBy      User?     @relation("RegistrationReviewer", fields: [reviewedById], references: [id])
-  createdProducer Producer? @relation("RegistrationCreatedProducer", fields: [createdProducerId], references: [id])
+  kabupaten        Region?                        @relation("RegistrationOfficeKabupaten", fields: [kabupatenId], references: [id])
+  nurseryKabupaten Region?                        @relation("RegistrationNurseryKabupaten", fields: [nurseryKabupatenId], references: [id])
+  reviewedBy       User?                          @relation("RegistrationReviewer", fields: [reviewedById], references: [id])
+  createdProducer  Producer?                      @relation("RegistrationCreatedProducer", fields: [createdProducerId], references: [id])
+  documents        ProducerRegistrationDocument[]
 
   @@index([status, createdAt])
   @@index([kabupatenId])
+  @@index([nurseryKabupatenId])
   @@map("producer_registration_requests")
+}
+
+model ProducerRegistrationDocument {
+  id             String                   @id @default(uuid()) @db.Char(36)
+  registrationId String                   @map("registration_id") @db.Char(36)
+  kind           RegistrationDocumentKind
+  title          String                   @db.VarChar(191)
+  fileId         String                   @map("file_id") @db.Char(36)
+  createdAt      DateTime                 @default(now()) @map("created_at")
+
+  registration ProducerRegistrationRequest @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  file         StoredFile                  @relation(fields: [fileId], references: [id])
+
+  @@unique([registrationId, kind])
+  @@index([registrationId])
+  @@index([fileId])
+  @@map("producer_registration_documents")
 }
 
 model StoredFile {
@@ -1211,17 +1349,20 @@ model StoredFile {
 
   uploadedBy User? @relation(fields: [uploadedById], references: [id])
 
-  producerDocuments      ProducerDocument[]
-  nurseryDocuments       NurseryDocument[]
-  seedGardenDocuments    SeedGardenDocument[]
-  seedSourceDocuments    SeedSourceDocument[]
-  applicationDocuments   ApplicationDocument[]
-  inspectionPhotos       InspectionPhoto[]
-  correctiveActions      CorrectiveAction[]
-  certificateCurrent     Certificate[]         @relation("CertificateCurrentFile")
-  certificateVersions    CertificateVersion[]
-  dashboardBanners       DashboardBanner[]
-  publicListingPhotos    PublicListingPhoto[]
+  producerDocuments     ProducerDocument[]
+  nurseryDocuments      NurseryDocument[]
+  seedGardenDocuments   SeedGardenDocument[]
+  seedSourceDocuments   SeedSourceDocument[]
+  applicationDocuments  ApplicationDocument[]
+  inspectionPhotos      InspectionPhoto[]
+  correctiveActions     CorrectiveAction[]
+  certificateCurrent    Certificate[]                  @relation("CertificateCurrentFile")
+  certificateVersions   CertificateVersion[]
+  dashboardBanners      DashboardBanner[]
+  publicListingPhotos   PublicListingPhoto[]
+  registrationDocuments ProducerRegistrationDocument[]
+  inspectionReports     InspectionReport[]
+  paymentProofs         PaymentProof[]
 
   @@index([sha256])
   @@map("stored_files")

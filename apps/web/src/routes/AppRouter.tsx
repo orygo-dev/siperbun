@@ -60,9 +60,10 @@ import { CommoditiesSettingsPage } from '../pages/pengaturan/CommoditiesSettings
 import { RegionsSettingsPage } from '../pages/pengaturan/RegionsSettingsPage';
 import { SettingsHubPage } from '../pages/pengaturan/SettingsHubPage';
 import { UsersSettingsPage } from '../pages/pengaturan/UsersSettingsPage';
+import { PortalContentSettingsPage } from '../pages/pengaturan/PortalContentSettingsPage';
 import { PortalLayout } from '../components/portal/PortalLayout';
 import { PortalHomePage } from '../pages/portal/PortalHomePage';
-import { PortalBibitPage } from '../pages/portal/PortalBibitPage';
+import { PortalLandingPage } from '../pages/portal/PortalLandingPage';
 import { PortalBibitDetailPage } from '../pages/portal/PortalBibitDetailPage';
 import { PortalPenangkarPage } from '../pages/portal/PortalPenangkarPage';
 import { PortalPenangkarDetailPage } from '../pages/portal/PortalPenangkarDetailPage';
@@ -77,8 +78,8 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route path="/portal" element={<PortalLayout />}>
-        <Route index element={<PortalHomePage />} />
-        <Route path="bibit" element={<PortalBibitPage />} />
+        <Route index element={<PortalLandingPage />} />
+        <Route path="bibit" element={<PortalHomePage />} />
         <Route path="bibit/:id" element={<PortalBibitDetailPage />} />
         <Route path="penangkar" element={<PortalPenangkarPage />} />
         <Route path="penangkar/:id" element={<PortalPenangkarDetailPage />} />
@@ -96,7 +97,7 @@ export function AppRouter() {
         <Route path="/profil" element={<ProfilePage />} />
 
         <Route path="/penangkar" element={<ProducersListPage />} />
-        <Route path="/penangkar/tambah" element={<ProducerFormPage mode="create" />} />
+        <Route path="/penangkar/tambah" element={<PortalDaftarPage adminMode />} />
         <Route path="/penangkar/:id" element={<ProducerDetailPage />} />
         <Route path="/penangkar/:id/edit" element={<ProducerFormPage mode="edit" />} />
 
@@ -137,6 +138,7 @@ export function AppRouter() {
 
         <Route path="/pengajuan" element={<ApplicationsListPage />} />
         <Route path="/pengajuan/tambah" element={<ApplicationFormPage />} />
+        <Route path="/pengajuan/:id/edit" element={<ApplicationFormPage />} />
         <Route path="/pengajuan/:id" element={<ApplicationDetailPage />} />
         <Route path="/pengajuan/:id/verifikasi" element={<ApplicationDetailPage />} />
 
@@ -178,6 +180,10 @@ export function AppRouter() {
 
         <Route path="/pengaturan" element={<SettingsHubPage />} />
         <Route path="/pengaturan/branding" element={<BrandingSettingsPage />} />
+        <Route
+          path="/pengaturan/konten-portal"
+          element={<PortalContentSettingsPage />}
+        />
         <Route path="/pengaturan/banner" element={<BannersSettingsPage />} />
         <Route
           path="/pengaturan/banner-mobile"
