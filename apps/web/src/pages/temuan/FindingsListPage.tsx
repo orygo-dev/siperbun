@@ -308,7 +308,7 @@ export function FindingDetailPage() {
               ) : null}
               {ca.file ? (
                 <a
-                  href={`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1'}/files/${ca.file.id}`}
+                  href={`${import.meta.env.VITE_API_URL || 'http://localhost:3111/api/v1'}/files/${ca.file.id}`}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-1 inline-block text-xs text-primary hover:underline"

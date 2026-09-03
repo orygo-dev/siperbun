@@ -12,7 +12,7 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { certificatesApi } from '../../services/certificates';
 import { useAuthStore } from '../../stores/authStore';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3111/api/v1';
 
 function fileHref(fileId: string) {
   return `${API_BASE}/files/${fileId}`;

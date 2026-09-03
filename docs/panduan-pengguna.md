@@ -13,7 +13,7 @@ Dokumen ini menjelaskan **cara memakai aplikasi untuk setiap role** dan **alur k
 | Layanan | URL (development) |
 |---|---|
 | Aplikasi web | http://localhost:5173 |
-| API / Swagger | http://localhost:3000/api/docs |
+| API / Swagger | http://localhost:3111/api/docs |
 
 ### 1.2 Login
 

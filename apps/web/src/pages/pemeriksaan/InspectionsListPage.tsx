@@ -536,7 +536,7 @@ export function InspectionDetailPage() {
             <div key={p.id} className="rounded-lg border border-border p-2">
               {p.file?.mimeType.startsWith('image/') ? (
                 <img
-                  src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1'}/files/${p.file.id}`}
+                  src={`${import.meta.env.VITE_API_URL || 'http://localhost:3111/api/v1'}/files/${p.file.id}`}
                   alt={p.caption ?? p.file.originalName}
                   className="h-32 w-full rounded object-cover"
                 />

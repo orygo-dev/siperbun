@@ -25,7 +25,7 @@ Browser (apps/web)
 
 ## Alur request tipikal
 
-1. UI memanggil `VITE_API_URL` (default `http://localhost:3000/api/v1`)
+1. UI memanggil `VITE_API_URL` (default `http://localhost:3111/api/v1`)
 2. Access token dikirim di header `Authorization: Bearer …`
 3. Refresh token HTTP-only cookie (`siperbun_refresh`, path `/api/v1/auth`) dirotasi via `POST /auth/refresh`
 4. Middleware `authenticate` + `requirePermission` / `requireAnyPermission`

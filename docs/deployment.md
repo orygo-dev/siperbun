@@ -36,7 +36,7 @@ JWT_ACCESS_SECRET=<rahasia-panjang>
 JWT_REFRESH_SECRET=<rahasia-panjang-lain>
 JWT_ACCESS_EXPIRES=15m
 JWT_REFRESH_EXPIRES=7d
-PORT=3000
+PORT=3111
 NODE_ENV=production
 CORS_ORIGIN=https://siperbun.example.go.id
 COOKIE_SECURE=true
@@ -76,7 +76,7 @@ Opsi service Windows:
 Opsi:
 
 1. `pnpm --filter @siperbun/web preview` (cepat, bukan ideal production)
-2. **Nginx for Windows** — root ke `apps/web/dist`, proxy `/api` ke `127.0.0.1:3000`
+2. **Nginx for Windows** — root ke `apps/web/dist`, proxy `/api` ke `127.0.0.1:3111`
 3. **IIS** — Static site ke `dist` + URL Rewrite / ARR reverse proxy ke API
 
 ---
@@ -101,7 +101,7 @@ server {
   }
 
   location /api/ {
-    proxy_pass http://127.0.0.1:3000;
+    proxy_pass http://127.0.0.1:3111;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;

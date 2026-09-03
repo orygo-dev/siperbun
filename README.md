@@ -85,8 +85,8 @@ pnpm dev
 ```
 
 - Web: http://localhost:5173
-- API: http://localhost:3000
-- Swagger: http://localhost:3000/api/docs
+- API: http://localhost:3111
+- Swagger: http://localhost:3111/api/docs
 
 ## Akun demo
 
@@ -147,7 +147,7 @@ ecosystem.config.cjs   Contoh PM2
 
 ## Troubleshooting
 
-- **Port 3000 dipakai:** ubah `PORT` di `apps/api/.env` atau hentikan proses lain.
+- **Port 3111 dipakai:** ubah `PORT` di `apps/api/.env` hanya jika diperlukan dan selaraskan konfigurasi PM2 serta Apache.
 - **ECONNREFUSED MySQL:** pastikan XAMPP MySQL jalan dan DB `siperbun` ada.
 - **Login gagal setelah seed:** jalankan ulang `pnpm db:seed`.
 - **CORS / cookie refresh:** `CORS_ORIGIN` harus cocok dengan origin web; frontend memakai `withCredentials`.

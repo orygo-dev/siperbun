@@ -31,7 +31,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
   const nodeEnv = source.NODE_ENV ?? 'development';
   return {
     nodeEnv,
-    port: Number(source.PORT ?? 3000),
+    port: Number(source.PORT ?? 3111),
     databaseUrl: required(source, 'DATABASE_URL'),
     jwtAccessSecret: jwtSecret(source, nodeEnv, 'JWT_ACCESS_SECRET'),
     jwtRefreshSecret: jwtSecret(source, nodeEnv, 'JWT_REFRESH_SECRET'),
