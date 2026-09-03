@@ -9,7 +9,7 @@ import {
   RegionType,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { PERMISSIONS, ROLE_PERMISSIONS, ROLES } from '@siperbun/shared';
+import { ALL_PERMISSIONS, PERMISSIONS, ROLE_PERMISSIONS, ROLES } from '@siperbun/shared';
 
 const prisma = new PrismaClient();
 
@@ -112,6 +112,9 @@ async function main() {
     'inspection_results',
     'field_inspections',
     'field_assignments',
+    'payment_proofs',
+    'application_invoices',
+    'inspection_reports',
     'application_status_histories',
     'application_documents',
     'certification_applications',
