@@ -1,3 +1,5 @@
+import { AppError } from './errors';
+
 export type AccessUser = {
   id: string;
   roles: string[];
@@ -26,4 +28,13 @@ export function requireProducerId(user: AccessUser) {
 export function canViewAllOperationalData(user: AccessUser) {
   return !isProducerUser(user) && !isInspectorUser(user);
 }
-import { AppError } from './errors';
+
+/** Tolak akses modul operasional dinas untuk akun penangkar */
+export function assertNotProducer(user: AccessUser, message?: string) {
+  if (isProducerUser(user)) {
+    throw new AppError(
+      message ?? 'Akses ditolak untuk akun penangkar',
+      403,
+    );
+  }
+}

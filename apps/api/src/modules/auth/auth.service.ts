@@ -255,20 +255,30 @@ export const authService = {
     return { ok: true };
   },
 
-  async forgotPassword(email: string) {
-    // Stub: always succeed to avoid email enumeration
-    await prisma.user.findFirst({ where: { email: email.toLowerCase() } });
+  async forgotPassword(_email: string) {
+    if (env.nodeEnv === 'production') {
+      throw new AppError(
+        'Reset password belum diaktifkan. Hubungi administrator.',
+        503,
+      );
+    }
+    // Dev stub: always succeed to avoid email enumeration
     return {
       message:
-        'Jika email terdaftar, instruksi reset password akan dikirim (stub Stage 1).',
+        'Jika email terdaftar, instruksi reset password akan dikirim (mode development).',
     };
   },
 
   async resetPassword(_token: string, _password: string) {
-    // Stub for Stage 1
+    if (env.nodeEnv === 'production') {
+      throw new AppError(
+        'Reset password belum diaktifkan. Hubungi administrator.',
+        503,
+      );
+    }
     return {
       message:
-        'Reset password belum diaktifkan penuh pada Stage 1. Hubungi administrator.',
+        'Reset password belum diaktifkan penuh. Hubungi administrator.',
     };
   },
 

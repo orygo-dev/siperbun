@@ -22,13 +22,17 @@ circulationInspectionsRouter.get(
   requirePermission(PERMISSIONS.INSPECTION_VIEW),
   async (req, res, next) => {
     try {
-      const result = await circulationInspectionsService.list({
-        page: Number(req.query.page ?? 1),
-        limit: Number(req.query.limit ?? 10),
-        search: req.query.search as string | undefined,
-        dateFrom: req.query.dateFrom as string | undefined,
-        dateTo: req.query.dateTo as string | undefined,
-      });
+      const user = (req as AuthedRequest).user!;
+      const result = await circulationInspectionsService.list(
+        {
+          page: Number(req.query.page ?? 1),
+          limit: Number(req.query.limit ?? 10),
+          search: req.query.search as string | undefined,
+          dateFrom: req.query.dateFrom as string | undefined,
+          dateTo: req.query.dateTo as string | undefined,
+        },
+        user,
+      );
       return success(
         res,
         result.items,
@@ -52,6 +56,7 @@ circulationInspectionsRouter.post(
       const item = await circulationInspectionsService.create(
         req.body,
         user.id,
+        user,
       );
       return success(res, item, 'Pengawasan peredaran berhasil dicatat', 201);
     } catch (e) {
@@ -65,8 +70,10 @@ circulationInspectionsRouter.get(
   requirePermission(PERMISSIONS.INSPECTION_VIEW),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const item = await circulationInspectionsService.getById(
         String(req.params.id),
+        user,
       );
       return success(res, item, 'Detail pengawasan peredaran berhasil dimuat');
     } catch (e) {
@@ -86,6 +93,7 @@ circulationInspectionsRouter.put(
         String(req.params.id),
         req.body,
         user.id,
+        user,
       );
       return success(res, item, 'Pengawasan peredaran berhasil diperbarui');
     } catch (e) {
@@ -103,6 +111,7 @@ circulationInspectionsRouter.delete(
       const item = await circulationInspectionsService.softDelete(
         String(req.params.id),
         user.id,
+        user,
       );
       return success(res, item, 'Pengawasan peredaran berhasil dihapus');
     } catch (e) {
@@ -122,6 +131,7 @@ circulationInspectionsRouter.post(
         String(req.params.id),
         req.body,
         user.id,
+        user,
       );
       return success(res, item, 'Temuan pengawasan berhasil ditambahkan', 201);
     } catch (e) {

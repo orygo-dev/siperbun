@@ -4,6 +4,11 @@ import type {
 } from '@siperbun/shared';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import {
+  type AccessUser,
+  isProducerUser,
+  requireProducerId,
+} from '../../utils/access-scope';
 import { AppError } from '../../utils/errors';
 
 function serializeSeedSource<T extends Record<string, unknown>>(item: T) {
@@ -30,22 +35,35 @@ const include = {
   variety: { select: { id: true, name: true, code: true } },
 } as const;
 
+function producerScope(
+  user: AccessUser,
+  queryProducerId?: string,
+): { producerId?: string } {
+  if (isProducerUser(user)) {
+    return { producerId: requireProducerId(user) };
+  }
+  return queryProducerId ? { producerId: queryProducerId } : {};
+}
+
 export const seedSourcesService = {
-  async list(query: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    producerId?: string;
-    commodityId?: string;
-    verificationStatus?: string;
-  }) {
+  async list(
+    query: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      producerId?: string;
+      commodityId?: string;
+      verificationStatus?: string;
+    },
+    user: AccessUser,
+  ) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
     const search = String(query.search ?? '').trim();
 
     const where: Prisma.SeedSourceWhereInput = {
       deletedAt: null,
-      ...(query.producerId ? { producerId: query.producerId } : {}),
+      ...producerScope(user, query.producerId),
       ...(query.commodityId ? { commodityId: query.commodityId } : {}),
       ...(query.verificationStatus
         ? { verificationStatus: query.verificationStatus }
@@ -78,16 +96,26 @@ export const seedSourcesService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user: AccessUser) {
     const item = await prisma.seedSource.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(isProducerUser(user)
+          ? { producerId: requireProducerId(user) }
+          : {}),
+      },
       include,
     });
     if (!item) throw new AppError('Sumber benih tidak ditemukan', 404);
     return serializeSeedSource(item);
   },
 
-  async create(input: SeedSourceCreateInput) {
+  async create(input: SeedSourceCreateInput, user: AccessUser) {
+    if (isProducerUser(user) && input.producerId !== requireProducerId(user)) {
+      throw new AppError('Penangkar hanya dapat menambah sumber benih sendiri', 403);
+    }
+
     const producer = await prisma.producer.findFirst({
       where: { id: input.producerId, deletedAt: null },
     });
@@ -137,11 +165,21 @@ export const seedSourcesService = {
     return serializeSeedSource(item);
   },
 
-  async update(id: string, input: SeedSourceUpdateInput) {
+  async update(id: string, input: SeedSourceUpdateInput, user: AccessUser) {
     const existing = await prisma.seedSource.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(isProducerUser(user)
+          ? { producerId: requireProducerId(user) }
+          : {}),
+      },
     });
     if (!existing) throw new AppError('Sumber benih tidak ditemukan', 404);
+
+    if (isProducerUser(user) && input.producerId && input.producerId !== existing.producerId) {
+      throw new AppError('Penangkar tidak dapat memindahkan kepemilikan sumber benih', 403);
+    }
 
     if (input.producerId) {
       const producer = await prisma.producer.findFirst({
@@ -186,10 +224,17 @@ export const seedSourcesService = {
       remainingStock = Number(existing.remainingStock);
     }
 
+    // Penangkar tidak boleh self-verify
+    const verificationStatus = isProducerUser(user)
+      ? undefined
+      : input.verificationStatus;
+
     const item = await prisma.seedSource.update({
       where: { id },
       data: {
-        ...(input.producerId !== undefined ? { producerId: input.producerId } : {}),
+        ...(input.producerId !== undefined && !isProducerUser(user)
+          ? { producerId: input.producerId }
+          : {}),
         ...(input.seedGardenId !== undefined
           ? { seedGardenId: input.seedGardenId }
           : {}),
@@ -218,8 +263,8 @@ export const seedSourcesService = {
           ? { usedQuantity: input.usedQuantity }
           : {}),
         remainingStock,
-        ...(input.verificationStatus !== undefined
-          ? { verificationStatus: input.verificationStatus }
+        ...(verificationStatus !== undefined
+          ? { verificationStatus }
           : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
       },
@@ -228,9 +273,15 @@ export const seedSourcesService = {
     return serializeSeedSource(item);
   },
 
-  async softDelete(id: string) {
+  async softDelete(id: string, user: AccessUser) {
     const existing = await prisma.seedSource.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(isProducerUser(user)
+          ? { producerId: requireProducerId(user) }
+          : {}),
+      },
     });
     if (!existing) throw new AppError('Sumber benih tidak ditemukan', 404);
     await prisma.seedSource.update({

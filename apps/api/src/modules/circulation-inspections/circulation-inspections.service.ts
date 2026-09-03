@@ -5,6 +5,7 @@ import type {
 } from '@siperbun/shared';
 import { Prisma, Severity } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { assertNotProducer, type AccessUser } from '../../utils/access-scope';
 import { writeAudit } from '../../utils/audit';
 import { AppError } from '../../utils/errors';
 
@@ -48,14 +49,20 @@ const findingsInclude = {
   orderBy: { createdAt: 'desc' as const },
 } as const;
 
+const DENY_MSG = 'Akun penangkar tidak dapat mengakses pengawasan peredaran';
+
 export const circulationInspectionsService = {
-  async list(query: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    dateFrom?: string;
-    dateTo?: string;
-  }) {
+  async list(
+    query: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    },
+    user: AccessUser,
+  ) {
+    assertNotProducer(user, DENY_MSG);
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
     const search = String(query.search ?? '').trim();
@@ -103,7 +110,8 @@ export const circulationInspectionsService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user: AccessUser) {
+    assertNotProducer(user, DENY_MSG);
     const item = await prisma.circulationInspection.findFirst({
       where: { id, deletedAt: null },
       include: { findings: findingsInclude },
@@ -112,7 +120,12 @@ export const circulationInspectionsService = {
     return serializeInspection(item);
   },
 
-  async create(input: CirculationInspectionCreateInput, userId: string) {
+  async create(
+    input: CirculationInspectionCreateInput,
+    userId: string,
+    user: AccessUser,
+  ) {
+    assertNotProducer(user, DENY_MSG);
     const inspectionNumber = await nextInspectionNumber();
 
     const item = await prisma.circulationInspection.create({
@@ -165,7 +178,9 @@ export const circulationInspectionsService = {
     id: string,
     input: CirculationInspectionUpdateInput,
     userId: string,
+    user: AccessUser,
   ) {
+    assertNotProducer(user, DENY_MSG);
     const existing = await prisma.circulationInspection.findFirst({
       where: { id, deletedAt: null },
     });
@@ -235,7 +250,8 @@ export const circulationInspectionsService = {
     return serialized;
   },
 
-  async softDelete(id: string, userId: string) {
+  async softDelete(id: string, userId: string, user: AccessUser) {
+    assertNotProducer(user, DENY_MSG);
     const existing = await prisma.circulationInspection.findFirst({
       where: { id, deletedAt: null },
     });
@@ -263,7 +279,9 @@ export const circulationInspectionsService = {
     inspectionId: string,
     input: CirculationFindingCreateInput,
     userId: string,
+    user: AccessUser,
   ) {
+    assertNotProducer(user, DENY_MSG);
     const inspection = await prisma.circulationInspection.findFirst({
       where: { id: inspectionId, deletedAt: null },
     });

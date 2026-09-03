@@ -22,12 +22,16 @@ seedLabelsRouter.get(
   requirePermission(PERMISSIONS.CERTIFICATE_VIEW),
   async (req, res, next) => {
     try {
-      const result = await seedLabelsService.list({
-        page: Number(req.query.page ?? 1),
-        limit: Number(req.query.limit ?? 10),
-        search: req.query.search as string | undefined,
-        certificateId: req.query.certificateId as string | undefined,
-      });
+      const user = (req as AuthedRequest).user!;
+      const result = await seedLabelsService.list(
+        {
+          page: Number(req.query.page ?? 1),
+          limit: Number(req.query.limit ?? 10),
+          search: req.query.search as string | undefined,
+          certificateId: req.query.certificateId as string | undefined,
+        },
+        user,
+      );
       return success(
         res,
         result.items,
@@ -61,7 +65,8 @@ seedLabelsRouter.get(
   requirePermission(PERMISSIONS.CERTIFICATE_VIEW),
   async (req, res, next) => {
     try {
-      const item = await seedLabelsService.getById(String(req.params.id));
+      const user = (req as AuthedRequest).user!;
+      const item = await seedLabelsService.getById(String(req.params.id), user);
       return success(res, item, 'Detail label berhasil dimuat');
     } catch (e) {
       next(e);

@@ -78,7 +78,7 @@ const menus: Array<{
     to: '/peta',
     label: 'Peta',
     icon: Map,
-    anyPerm: [PERMISSIONS.PRODUCER_VIEW, PERMISSIONS.NURSERY_VIEW, PERMISSIONS.PRODUCTION_VIEW],
+    anyPerm: [PERMISSIONS.PRODUCER_VIEW, PERMISSIONS.APPLICATION_VERIFY],
   },
   {
     to: '/profil',

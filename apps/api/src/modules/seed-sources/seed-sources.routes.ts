@@ -6,11 +6,10 @@ import {
 import { Router } from 'express';
 import {
   authenticate,
-  requireAnyPermission,
   requirePermission,
 } from '../../middlewares/auth';
 import { validateBody } from '../../middlewares/validate';
-import { success } from '../../utils/response';
+import { AuthedRequest, success } from '../../utils/response';
 import { seedSourcesService } from './seed-sources.service';
 
 export const seedSourcesRouter = Router();
@@ -22,14 +21,20 @@ seedSourcesRouter.get(
   requirePermission(PERMISSIONS.PRODUCTION_VIEW),
   async (req, res, next) => {
     try {
-      const result = await seedSourcesService.list({
-        page: Number(req.query.page ?? 1),
-        limit: Number(req.query.limit ?? 10),
-        search: req.query.search as string | undefined,
-        producerId: req.query.producerId as string | undefined,
-        commodityId: req.query.commodityId as string | undefined,
-        verificationStatus: req.query.verificationStatus as string | undefined,
-      });
+      const user = (req as AuthedRequest).user!;
+      const result = await seedSourcesService.list(
+        {
+          page: Number(req.query.page ?? 1),
+          limit: Number(req.query.limit ?? 10),
+          search: req.query.search as string | undefined,
+          producerId: req.query.producerId as string | undefined,
+          commodityId: req.query.commodityId as string | undefined,
+          verificationStatus: req.query.verificationStatus as
+            | string
+            | undefined,
+        },
+        user,
+      );
       return success(
         res,
         result.items,
@@ -48,7 +53,11 @@ seedSourcesRouter.get(
   requirePermission(PERMISSIONS.PRODUCTION_VIEW),
   async (req, res, next) => {
     try {
-      const item = await seedSourcesService.getById(String(req.params.id));
+      const user = (req as AuthedRequest).user!;
+      const item = await seedSourcesService.getById(
+        String(req.params.id),
+        user,
+      );
       return success(res, item, 'Detail sumber benih berhasil dimuat');
     } catch (e) {
       next(e);
@@ -62,7 +71,8 @@ seedSourcesRouter.post(
   validateBody(seedSourceCreateSchema),
   async (req, res, next) => {
     try {
-      const item = await seedSourcesService.create(req.body);
+      const user = (req as AuthedRequest).user!;
+      const item = await seedSourcesService.create(req.body, user);
       return success(res, item, 'Sumber benih berhasil ditambahkan', 201);
     } catch (e) {
       next(e);
@@ -76,9 +86,11 @@ seedSourcesRouter.put(
   validateBody(seedSourceUpdateSchema),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const item = await seedSourcesService.update(
         String(req.params.id),
         req.body,
+        user,
       );
       return success(res, item, 'Sumber benih berhasil diperbarui');
     } catch (e) {
@@ -92,7 +104,11 @@ seedSourcesRouter.delete(
   requirePermission(PERMISSIONS.PRODUCTION_DELETE),
   async (req, res, next) => {
     try {
-      const item = await seedSourcesService.softDelete(String(req.params.id));
+      const user = (req as AuthedRequest).user!;
+      const item = await seedSourcesService.softDelete(
+        String(req.params.id),
+        user,
+      );
       return success(res, item, 'Sumber benih berhasil dihapus');
     } catch (e) {
       next(e);
@@ -100,12 +116,10 @@ seedSourcesRouter.delete(
   },
 );
 
+/** Hanya dinas (APPLICATION_VERIFY) — bukan PENANGKAR */
 seedSourcesRouter.post(
   '/:id/verify',
-  requireAnyPermission(
-    PERMISSIONS.PRODUCTION_UPDATE,
-    PERMISSIONS.APPLICATION_VERIFY,
-  ),
+  requirePermission(PERMISSIONS.APPLICATION_VERIFY),
   async (req, res, next) => {
     try {
       const item = await seedSourcesService.verify(String(req.params.id));

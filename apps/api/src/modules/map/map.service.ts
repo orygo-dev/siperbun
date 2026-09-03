@@ -1,9 +1,15 @@
-import { prisma } from '../../config/database';
+import type { DashboardScope } from '../dashboard/dashboard.service';
 import { dashboardService } from '../dashboard/dashboard.service';
+import { prisma } from '../../config/database';
 
 export const mapService = {
-  async markers() {
-    const base = await dashboardService.distributionMap();
+  async markers(scope: DashboardScope = { roles: [] }) {
+    const base = await dashboardService.distributionMap(scope);
+
+    // Marker pengawasan hanya untuk staf dinas (bukan penangkar)
+    if (scope.producerId) {
+      return base;
+    }
 
     const circulations = await prisma.circulationInspection.findMany({
       where: {

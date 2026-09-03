@@ -5,6 +5,11 @@ import type {
 } from '@siperbun/shared';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import {
+  type AccessUser,
+  isProducerUser,
+  requireProducerId,
+} from '../../utils/access-scope';
 import { writeAudit } from '../../utils/audit';
 import { AppError } from '../../utils/errors';
 
@@ -40,18 +45,24 @@ const include = {
 } as const;
 
 export const seedLabelsService = {
-  async list(query: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    certificateId?: string;
-  }) {
+  async list(
+    query: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      certificateId?: string;
+    },
+    user: AccessUser,
+  ) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
     const search = String(query.search ?? '').trim();
 
     const where: Prisma.SeedLabelWhereInput = {
       deletedAt: null,
+      ...(isProducerUser(user)
+        ? { certificate: { producerId: requireProducerId(user) } }
+        : {}),
       ...(query.certificateId ? { certificateId: query.certificateId } : {}),
       ...(search
         ? {
@@ -89,9 +100,15 @@ export const seedLabelsService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user: AccessUser) {
     const item = await prisma.seedLabel.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(isProducerUser(user)
+          ? { certificate: { producerId: requireProducerId(user) } }
+          : {}),
+      },
       include,
     });
     if (!item) throw new AppError('Label tidak ditemukan', 404);

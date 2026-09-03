@@ -4,6 +4,11 @@ import type {
 } from '@siperbun/shared';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import {
+  type AccessUser,
+  isProducerUser,
+  requireProducerId,
+} from '../../utils/access-scope';
 import { writeAudit } from '../../utils/audit';
 import { AppError } from '../../utils/errors';
 
@@ -28,20 +33,27 @@ const include = {
 } as const;
 
 export const seedDistributionsService = {
-  async list(query: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    producerId?: string;
-    certificateId?: string;
-  }) {
+  async list(
+    query: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      producerId?: string;
+      certificateId?: string;
+    },
+    user: AccessUser,
+  ) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
     const search = String(query.search ?? '').trim();
 
     const where: Prisma.SeedDistributionWhereInput = {
       deletedAt: null,
-      ...(query.producerId ? { producerId: query.producerId } : {}),
+      ...(isProducerUser(user)
+        ? { producerId: requireProducerId(user) }
+        : query.producerId
+          ? { producerId: query.producerId }
+          : {}),
       ...(query.certificateId ? { certificateId: query.certificateId } : {}),
       ...(search
         ? {
@@ -72,9 +84,15 @@ export const seedDistributionsService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user: AccessUser) {
     const item = await prisma.seedDistribution.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(isProducerUser(user)
+          ? { producerId: requireProducerId(user) }
+          : {}),
+      },
       include,
     });
     if (!item) throw new AppError('Distribusi bibit tidak ditemukan', 404);

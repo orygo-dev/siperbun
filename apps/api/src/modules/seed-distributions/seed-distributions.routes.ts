@@ -21,13 +21,17 @@ seedDistributionsRouter.get(
   requirePermission(PERMISSIONS.CERTIFICATE_VIEW),
   async (req, res, next) => {
     try {
-      const result = await seedDistributionsService.list({
-        page: Number(req.query.page ?? 1),
-        limit: Number(req.query.limit ?? 10),
-        search: req.query.search as string | undefined,
-        producerId: req.query.producerId as string | undefined,
-        certificateId: req.query.certificateId as string | undefined,
-      });
+      const user = (req as AuthedRequest).user!;
+      const result = await seedDistributionsService.list(
+        {
+          page: Number(req.query.page ?? 1),
+          limit: Number(req.query.limit ?? 10),
+          search: req.query.search as string | undefined,
+          producerId: req.query.producerId as string | undefined,
+          certificateId: req.query.certificateId as string | undefined,
+        },
+        user,
+      );
       return success(
         res,
         result.items,
@@ -61,8 +65,10 @@ seedDistributionsRouter.get(
   requirePermission(PERMISSIONS.CERTIFICATE_VIEW),
   async (req, res, next) => {
     try {
+      const user = (req as AuthedRequest).user!;
       const item = await seedDistributionsService.getById(
         String(req.params.id),
+        user,
       );
       return success(res, item, 'Detail distribusi bibit berhasil dimuat');
     } catch (e) {

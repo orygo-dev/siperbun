@@ -33,8 +33,8 @@ export function LoginPage() {
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: 'admin@siperbun.local',
-      password: 'password',
+      email: import.meta.env.DEV ? 'admin@siperbun.local' : '',
+      password: import.meta.env.DEV ? 'password' : '',
     },
   });
 
@@ -214,10 +214,12 @@ export function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 hidden rounded-xl border border-amber-200/80 bg-amber-50/90 px-3.5 py-3 text-[11px] leading-relaxed text-amber-900 lg:block">
-            <strong className="font-semibold">Akun demo:</strong>{' '}
-            admin@siperbun.local / password. Ubah sebelum production.
-          </div>
+          {import.meta.env.DEV && (
+            <div className="mt-6 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3.5 py-3 text-[11px] leading-relaxed text-amber-900">
+              <strong className="font-semibold">Akun demo:</strong>{' '}
+              admin@siperbun.local / password. Ubah sebelum production.
+            </div>
+          )}
 
           <p className="mt-6 text-center text-[13px] text-slate-500 lg:text-xs lg:text-primary/70">
             Masyarakat?{' '}
