@@ -2,9 +2,9 @@ import type { ActivityItem } from '../../services/dashboard';
 
 export function ActivityTimeline({ items }: { items: ActivityItem[] }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-soft">
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-soft">
       <h3 className="text-sm font-semibold">Aktivitas Terbaru</h3>
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 max-h-[280px] flex-1 space-y-3 overflow-y-auto pr-0.5">
         {items.map((item, idx) => (
           <div key={item.id} className="flex gap-3">
             <div className="flex flex-col items-center">

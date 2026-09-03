@@ -911,6 +911,78 @@ export const dashboardService = {
     }));
   },
 
+  async seedDistributionsSummary(scope: DashboardScope = { roles: [] }) {
+    if (isScopedInspector(scope)) {
+      return {
+        totalQuantity: 0,
+        totalTransactions: 0,
+        thisYearQuantity: 0,
+        producerCount: 0,
+        districts: [],
+        recent: [],
+      };
+    }
+    const producerId = scope.producerId ?? undefined;
+    const yearStart = new Date(new Date().getFullYear(), 0, 1);
+    const where = {
+      deletedAt: null,
+      ...(producerId ? { producerId } : {}),
+    };
+
+    const [agg, yearAgg, grouped, producerGroups, recent] = await Promise.all([
+      prisma.seedDistribution.aggregate({
+        where,
+        _sum: { quantity: true },
+        _count: { _all: true },
+      }),
+      prisma.seedDistribution.aggregate({
+        where: { ...where, distributedAt: { gte: yearStart } },
+        _sum: { quantity: true },
+      }),
+      prisma.seedDistribution.groupBy({
+        by: ['destinationKab'],
+        where,
+        _sum: { quantity: true },
+        _count: { _all: true },
+      }),
+      prisma.seedDistribution.groupBy({
+        by: ['producerId'],
+        where,
+      }),
+      prisma.seedDistribution.findMany({
+        where,
+        include: {
+          producer: { select: { businessName: true } },
+        },
+        orderBy: { distributedAt: 'desc' },
+        take: 6,
+      }),
+    ]);
+
+    return {
+      totalQuantity: Number(agg._sum.quantity ?? 0),
+      totalTransactions: agg._count._all,
+      thisYearQuantity: Number(yearAgg._sum.quantity ?? 0),
+      producerCount: producerGroups.length,
+      districts: grouped
+        .filter((g) => Boolean(g.destinationKab))
+        .map((g) => ({
+          name: String(g.destinationKab),
+          quantity: Number(g._sum.quantity ?? 0),
+          count: g._count._all,
+        }))
+        .sort((a, b) => b.quantity - a.quantity),
+      recent: recent.map((r) => ({
+        id: r.id,
+        buyerName: r.buyerName,
+        producer: r.producer.businessName,
+        destinationKab: r.destinationKab,
+        quantity: Number(r.quantity),
+        distributedAt: r.distributedAt.toISOString(),
+      })),
+    };
+  },
+
   async banners(placement?: BannerPlacement) {
     return bannersService.listActive(placement);
   },

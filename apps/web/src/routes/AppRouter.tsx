@@ -41,6 +41,7 @@ import { LabelFormPage } from '../pages/label-distribusi/LabelFormPage';
 import { LabelDetailPage } from '../pages/label-distribusi/LabelDetailPage';
 import { DistributionFormPage } from '../pages/label-distribusi/DistributionFormPage';
 import { DistributionDetailPage } from '../pages/label-distribusi/DistributionDetailPage';
+import { DistributionsListPage } from '../pages/distribusi/DistributionsListPage';
 import {
   CirculationDetailPage,
   CirculationFormPage,
@@ -167,6 +168,9 @@ export function AppRouter() {
           path="/label-distribusi/distribusi/:id"
           element={<DistributionDetailPage />}
         />
+        <Route path="/distribusi" element={<DistributionsListPage />} />
+        <Route path="/distribusi/tambah" element={<DistributionFormPage />} />
+        <Route path="/distribusi/:id" element={<DistributionDetailPage />} />
 
         <Route path="/pengawasan" element={<CirculationsListPage />} />
         <Route path="/pengawasan/tambah" element={<CirculationFormPage />} />

@@ -747,12 +747,15 @@ export type LabelDistributionCreateInput = z.infer<
 >;
 
 export const seedDistributionCreateSchema = z.object({
-  producerId: z.string().uuid('Penangkar wajib dipilih'),
+  producerId: z.string().uuid('Penangkar wajib dipilih').optional(),
   certificateId: optionalString,
   batchId: optionalString,
   buyerName: z.string().min(1, 'Nama pembeli wajib diisi').max(191),
   buyerAddress: optionalString,
-  destinationKab: optionalString,
+  destinationKab: z
+    .string()
+    .min(1, 'Kabupaten tujuan wajib dipilih')
+    .max(191),
   quantity: z.coerce.number().int().min(1, 'Jumlah minimal 1'),
   distributedAt: z.string().min(1, 'Tanggal distribusi wajib diisi'),
   deliveryNoteNo: optionalString,

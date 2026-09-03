@@ -78,6 +78,22 @@ export type ActivityItem = {
   relative: string;
 };
 
+export type SeedDistributionSummary = {
+  totalQuantity: number;
+  totalTransactions: number;
+  thisYearQuantity: number;
+  producerCount: number;
+  districts: Array<{ name: string; quantity: number; count: number }>;
+  recent: Array<{
+    id: string;
+    buyerName: string;
+    producer: string;
+    destinationKab: string | null;
+    quantity: number;
+    distributedAt: string;
+  }>;
+};
+
 export const dashboardApi = {
   summary: () => api.get<ApiResponse<DashboardSummary>>('/dashboard/summary'),
   certificationStatus: () =>
@@ -103,4 +119,8 @@ export const dashboardApi = {
     api.get<ApiResponse<DashboardBanner[]>>('/dashboard/banners', {
       params: placement ? { placement } : undefined,
     }),
+  seedDistributions: () =>
+    api.get<ApiResponse<SeedDistributionSummary>>(
+      '/dashboard/seed-distributions',
+    ),
 };

@@ -30,9 +30,10 @@ export function PortalLayout() {
   const isDetail =
     location.pathname.startsWith('/portal/bibit/') ||
     /^\/portal\/penangkar\/[^/]+$/.test(location.pathname);
-  const visibleNav = landingNav.filter((item) =>
-    !('section' in item) || portalContentQuery.data?.content[item.section].enabled !== false,
-  );
+  const visibleNav = landingNav.filter((item) => {
+    if (!('section' in item)) return true;
+    return portalContentQuery.data?.content?.[item.section]?.enabled !== false;
+  });
 
   return (
     <div className="portal-root min-h-screen bg-white text-[#15302a]">
@@ -93,9 +94,9 @@ export function PortalLayout() {
           <div>
             <h2 className="text-sm font-bold text-[#0c4a3a]">Informasi</h2>
             <div className="mt-3 grid gap-2 text-sm text-[#60756f]">
-              {portalContentQuery.data?.content.profile.enabled !== false ? <a href="/portal#profil" className="hover:text-[#0c4a3a]">Profil Balai</a> : null}
-              {portalContentQuery.data?.content.visionMission.enabled !== false ? <a href="/portal#visi-misi" className="hover:text-[#0c4a3a]">Visi & Misi</a> : null}
-              {portalContentQuery.data?.content.map.enabled !== false ? <a href="/portal#peta" className="hover:text-[#0c4a3a]">Peta Sebaran</a> : null}
+              {portalContentQuery.data?.content?.profile?.enabled !== false ? <a href="/portal#profil" className="hover:text-[#0c4a3a]">Profil Balai</a> : null}
+              {portalContentQuery.data?.content?.visionMission?.enabled !== false ? <a href="/portal#visi-misi" className="hover:text-[#0c4a3a]">Visi & Misi</a> : null}
+              {portalContentQuery.data?.content?.map?.enabled !== false ? <a href="/portal#peta" className="hover:text-[#0c4a3a]">Peta Sebaran</a> : null}
             </div>
           </div>
           <div>

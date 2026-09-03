@@ -3,14 +3,14 @@ import type { CertificateScans } from '../../services/dashboard';
 
 export function CertificateScanCard({ data }: { data: CertificateScans }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-soft">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Monitoring Scan Sertifikat</h3>
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-soft">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Scan Sertifikat</h3>
         <Link
           to="/sertifikat"
-          className="rounded-lg bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-dark"
+          className="shrink-0 text-xs font-medium text-primary hover:underline"
         >
-          Unggah Scan
+          Kelola
         </Link>
       </div>
       <div className="grid grid-cols-2 gap-3">

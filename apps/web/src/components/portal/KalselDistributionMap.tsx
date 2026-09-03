@@ -6,6 +6,7 @@ import { feature } from 'topojson-client';
 import type { FeatureCollection } from 'geojson';
 import type { GeometryCollection, Topology } from 'topojson-specification';
 import { MapPin } from 'lucide-react';
+import { ClientOnlyMap } from '../common/ClientOnlyMap';
 import { publicApi } from '../../services/public';
 import { cn } from '../../lib/utils';
 
@@ -112,7 +113,9 @@ export function KalselDistributionMap() {
             Peta Kalimantan Selatan belum dapat dimuat.
           </div>
         ) : topologyQ.data ? (
+          <ClientOnlyMap className="h-full w-full">
           <MapContainer
+            key="kalsel-map"
             center={[-2.85, 115.45]}
             zoom={7}
             minZoom={7}
@@ -137,7 +140,13 @@ export function KalselDistributionMap() {
                 layer.on('click', () => setSelectedDistrict(name));
               }}
             />
-            {markers.map((marker) => (
+            {markers
+              .filter(
+                (marker) =>
+                  Number.isFinite(marker.latitude) &&
+                  Number.isFinite(marker.longitude),
+              )
+              .map((marker) => (
               <CircleMarker
                 key={marker.id}
                 center={[marker.latitude, marker.longitude]}
@@ -163,6 +172,7 @@ export function KalselDistributionMap() {
               </CircleMarker>
             ))}
           </MapContainer>
+          </ClientOnlyMap>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-slate-500">
             Memuat peta…

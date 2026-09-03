@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -12,15 +13,15 @@ import { formatNumber } from '../../lib/utils';
 
 export function ProductionChart({ data }: { data: ProductionItem[] }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-soft">
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-soft">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Produksi Bibit per Komoditas</h3>
-        <button
-          type="button"
+        <Link
+          to="/laporan"
           className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary-light"
         >
-          Ekspor Data
-        </button>
+          Lihat laporan
+        </Link>
       </div>
       <div className="h-[260px]">
         <ResponsiveContainer width="100%" height="100%">

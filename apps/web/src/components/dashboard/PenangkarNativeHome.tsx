@@ -7,6 +7,7 @@ import {
   Map,
   MapPin,
   Sprout,
+  Truck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn, formatNumber } from '../../lib/utils';
@@ -78,6 +79,7 @@ const metrics = [
 const shortcuts = [
   { to: '/produksi/tambah', label: 'Tambah produksi', icon: Leaf },
   { to: '/pengajuan/tambah', label: 'Ajukan sertifikasi', icon: FilePlus2 },
+  { to: '/distribusi/tambah', label: 'Catat distribusi', icon: Truck },
   { to: '/sertifikat', label: 'Sertifikat', icon: Award },
   { to: '/peta', label: 'Peta', icon: Map },
   { to: '/sumber-benih', label: 'Sumber benih', icon: Sprout },

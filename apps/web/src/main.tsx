@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { BrandingBootstrap } from './components/common/BrandingBootstrap';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AppRouter } from './routes/AppRouter';
 import './styles/index.css';
 
@@ -22,7 +23,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <BrandingBootstrap>
-          <AppRouter />
+          <ErrorBoundary>
+            <AppRouter />
+          </ErrorBoundary>
           <Toaster richColors position="top-right" />
         </BrandingBootstrap>
       </BrowserRouter>

@@ -42,6 +42,8 @@ const PERMISSION_META: Record<string, { name: string; module: string }> = {
   [PERMISSIONS.CERTIFICATE_UPLOAD]: { name: 'Unggah Scan Sertifikat', module: 'certificate' },
   [PERMISSIONS.CERTIFICATE_VERIFY]: { name: 'Verifikasi Scan', module: 'certificate' },
   [PERMISSIONS.CERTIFICATE_REPLACE]: { name: 'Ganti Scan', module: 'certificate' },
+  [PERMISSIONS.DISTRIBUTION_VIEW]: { name: 'Lihat Distribusi Bibit', module: 'distribution' },
+  [PERMISSIONS.DISTRIBUTION_CREATE]: { name: 'Catat Distribusi Bibit', module: 'distribution' },
   [PERMISSIONS.REPORT_VIEW]: { name: 'Lihat Laporan', module: 'report' },
   [PERMISSIONS.REPORT_EXPORT]: { name: 'Ekspor Laporan', module: 'report' },
   [PERMISSIONS.USER_MANAGE]: { name: 'Kelola Pengguna', module: 'user' },

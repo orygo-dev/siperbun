@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { useMemo, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import { Link } from 'react-router-dom';
+import { ClientOnlyMap } from '../../components/common/ClientOnlyMap';
 import { LoadingState } from '../../components/common/LoadingState';
 import { PageHeader } from '../../components/common/PageHeader';
 import { mapApi } from '../../services/map';
@@ -104,7 +105,9 @@ export function MapPage() {
           <LoadingState />
         ) : (
           <div className="h-[calc(100vh-260px)] min-h-[420px] overflow-hidden rounded-xl">
+            <ClientOnlyMap className="h-full w-full">
             <MapContainer
+              key={`map-${filter}`}
               center={[KALSEL_MAP_CENTER.lat, KALSEL_MAP_CENTER.lng]}
               zoom={KALSEL_MAP_CENTER.zoom}
               scrollWheelZoom
@@ -114,7 +117,9 @@ export function MapPage() {
                 attribution="&copy; OpenStreetMap"
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              {markers.map((m) => (
+              {markers
+                .filter((m) => Number.isFinite(m.lat) && Number.isFinite(m.lng))
+                .map((m) => (
                 <Marker
                   key={`${m.type}-${m.id}`}
                   position={[m.lat, m.lng]}
@@ -137,6 +142,7 @@ export function MapPage() {
                 </Marker>
               ))}
             </MapContainer>
+            </ClientOnlyMap>
           </div>
         )}
       </div>

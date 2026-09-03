@@ -9,8 +9,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 
 const titles: Record<string, { title: string; subtitle?: string }> = {
   '/dashboard': {
-    title: 'Dashboard Dinas',
-    subtitle: 'Monitoring layanan perbenihan dan sertifikasi bibit perkebunan',
+    title: 'Dashboard',
   },
   '/penangkar': { title: 'Penangkar', subtitle: 'Data penangkar bibit perkebunan' },
   '/penangkar/tambah': { title: 'Tambah Penangkar', subtitle: 'Formulir data penangkar baru' },
@@ -51,6 +50,11 @@ const titles: Record<string, { title: string; subtitle?: string }> = {
     subtitle: 'Buat sertifikat dari pengajuan yang lulus',
   },
   '/label-distribusi': { title: 'Label & Distribusi', subtitle: 'Label dan distribusi bibit' },
+  '/distribusi': { title: 'Distribusi Bibit', subtitle: 'Penjualan dan penyaluran bibit' },
+  '/distribusi/tambah': {
+    title: 'Tambah Distribusi',
+    subtitle: 'Catat penjualan atau penyaluran bibit',
+  },
   '/pengawasan': { title: 'Pengawasan', subtitle: 'Pengawasan peredaran bibit' },
   '/laporan': { title: 'Laporan', subtitle: 'Laporan operasional dan kinerja' },
   '/peta': { title: 'Peta', subtitle: 'Peta persebaran perbenihan' },
@@ -154,6 +158,15 @@ function resolveTitle(pathname: string, isPenangkar: boolean) {
           return { title: 'Detail Label', subtitle: 'Informasi label sertifikat' };
         }
         return titles[key]!;
+      }
+      if (key === '/distribusi') {
+        if (pathname.endsWith('/tambah')) {
+          return {
+            title: 'Tambah Distribusi',
+            subtitle: 'Catat penjualan atau penyaluran bibit',
+          };
+        }
+        return { title: 'Detail Distribusi', subtitle: 'Informasi distribusi bibit' };
       }
       if (key === '/pengawasan') {
         if (pathname.endsWith('/tambah')) {

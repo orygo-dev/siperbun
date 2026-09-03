@@ -18,9 +18,9 @@ const colors = {
 
 export function PriorityTaskCard({ items }: { items: PriorityItem[] }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-soft">
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-soft">
       <h3 className="text-sm font-semibold">Pekerjaan Prioritas</h3>
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 flex-1 space-y-2">
         {items.map((item) => {
           const Icon = icons[item.key as keyof typeof icons] ?? AlertTriangle;
           return (

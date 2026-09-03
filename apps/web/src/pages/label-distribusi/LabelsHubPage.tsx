@@ -127,18 +127,31 @@ export function LabelsHubPage() {
         title="Label & Distribusi"
         subtitle="Kelola label sertifikat dan distribusi bibit"
         actions={
-          <PermissionGuard permission={PERMISSIONS.CERTIFICATE_UPLOAD}>
-            <Link
-              to={
-                tab === 'distribusi'
-                  ? '/label-distribusi/distribusi/tambah'
-                  : '/label-distribusi/label/tambah'
-              }
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-primary/90"
+          tab === 'distribusi' ? (
+            <PermissionGuard
+              permission={[
+                PERMISSIONS.CERTIFICATE_UPLOAD,
+                PERMISSIONS.DISTRIBUTION_CREATE,
+              ]}
+              mode="any"
             >
-              <Plus className="h-4 w-4" /> Tambah
-            </Link>
-          </PermissionGuard>
+              <Link
+                to="/label-distribusi/distribusi/tambah"
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4" /> Tambah
+              </Link>
+            </PermissionGuard>
+          ) : (
+            <PermissionGuard permission={PERMISSIONS.CERTIFICATE_UPLOAD}>
+              <Link
+                to="/label-distribusi/label/tambah"
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4" /> Tambah
+              </Link>
+            </PermissionGuard>
+          )
         }
       />
 

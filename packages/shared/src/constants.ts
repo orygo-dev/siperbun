@@ -11,6 +11,37 @@ export const KALSEL_MAP_CENTER = {
   zoom: 8,
 } as const;
 
+/** Nama kabupaten/kota resmi Kalsel (selaras seed wilayah & peta dashboard) */
+export const KALSEL_DISTRICTS = [
+  'Balangan',
+  'Banjar',
+  'Banjarbaru',
+  'Banjarmasin',
+  'Barito Kuala',
+  'Hulu Sungai Selatan',
+  'Hulu Sungai Tengah',
+  'Hulu Sungai Utara',
+  'Kotabaru',
+  'Tabalong',
+  'Tanah Bumbu',
+  'Tanah Laut',
+  'Tapin',
+] as const;
+
+export type KalselDistrict = (typeof KALSEL_DISTRICTS)[number];
+
+function normalizeDistrictKey(value: string) {
+  return value.toLocaleLowerCase('id-ID').replace(/[^a-z0-9]/g, '');
+}
+
+export function canonicalizeKalselDistrict(
+  value: string,
+): KalselDistrict | null {
+  const key = normalizeDistrictKey(value.trim());
+  if (!key) return null;
+  return KALSEL_DISTRICTS.find((d) => normalizeDistrictKey(d) === key) ?? null;
+}
+
 export const REFRESH_COOKIE_NAME = 'siperbun_refresh';
 
 export const APPLICATION_DOCUMENT_TITLES = [

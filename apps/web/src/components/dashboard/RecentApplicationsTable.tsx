@@ -5,8 +5,16 @@ import { StatusBadge } from '../common/StatusBadge';
 
 export function RecentApplicationsTable({ items }: { items: RecentApplication[] }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-soft">
-      <h3 className="mb-3 text-sm font-semibold">Pengajuan Terbaru</h3>
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-soft">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Pengajuan Terbaru</h3>
+        <Link
+          to="/pengajuan"
+          className="shrink-0 text-xs font-medium text-primary hover:underline"
+        >
+          Lihat semua
+        </Link>
+      </div>
 
       {/* Desktop */}
       <div className="hidden overflow-x-auto md:block">

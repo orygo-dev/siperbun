@@ -27,6 +27,8 @@ export const PERMISSIONS = {
   CERTIFICATE_UPLOAD: 'certificate.upload',
   CERTIFICATE_VERIFY: 'certificate.verify',
   CERTIFICATE_REPLACE: 'certificate.replace',
+  DISTRIBUTION_VIEW: 'distribution.view',
+  DISTRIBUTION_CREATE: 'distribution.create',
   REPORT_VIEW: 'report.view',
   REPORT_EXPORT: 'report.export',
   USER_MANAGE: 'user.manage',

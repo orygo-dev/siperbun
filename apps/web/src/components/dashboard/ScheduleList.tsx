@@ -4,9 +4,9 @@ import type { ScheduleItem } from '../../services/dashboard';
 
 export function ScheduleList({ items }: { items: ScheduleItem[] }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-soft">
-      <h3 className="text-sm font-semibold">Jadwal Pemeriksaan Hari Ini</h3>
-      <div className="mt-3 space-y-3">
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-soft">
+      <h3 className="text-sm font-semibold">Jadwal hari ini</h3>
+      <div className="mt-3 max-h-[260px] flex-1 space-y-3 overflow-y-auto pr-0.5">
         {items.length === 0 && (
           <p className="text-sm text-[var(--text-secondary)]">Tidak ada jadwal hari ini.</p>
         )}

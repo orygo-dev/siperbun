@@ -13,6 +13,7 @@ import { ActivityTimeline } from '../components/dashboard/ActivityTimeline';
 import { CertificateScanCard } from '../components/dashboard/CertificateScanCard';
 import { CertificationStatusChart } from '../components/dashboard/CertificationStatusChart';
 import { DashboardBannerCarousel } from '../components/dashboard/DashboardBannerCarousel';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { InspectorPerformance } from '../components/dashboard/InspectorPerformance';
 import { MapCard } from '../components/dashboard/MapCard';
 import { PenangkarNativeHome } from '../components/dashboard/PenangkarNativeHome';
@@ -20,6 +21,7 @@ import { PriorityTaskCard } from '../components/dashboard/PriorityTaskCard';
 import { ProductionChart } from '../components/dashboard/ProductionChart';
 import { RecentApplicationsTable } from '../components/dashboard/RecentApplicationsTable';
 import { ScheduleList } from '../components/dashboard/ScheduleList';
+import { SeedDistributionCard } from '../components/dashboard/SeedDistributionCard';
 import { StatCard } from '../components/dashboard/StatCard';
 import { cn, formatNumber } from '../lib/utils';
 import { dashboardApi } from '../services/dashboard';
@@ -38,6 +40,40 @@ function resolveVariant(roles: string[]): DashVariant {
   if (roles.includes(ROLES.PBT)) return 'pbt';
   if (roles.includes(ROLES.PENANGKAR)) return 'penangkar';
   return 'executive';
+}
+
+function greetingForHour(hour: number) {
+  if (hour < 11) return 'Selamat pagi';
+  if (hour < 15) return 'Selamat siang';
+  if (hour < 18) return 'Selamat sore';
+  return 'Selamat malam';
+}
+
+function firstName(name?: string) {
+  return name?.trim().split(/\s+/)[0] ?? '';
+}
+
+function DashboardIntro({ name }: { name?: string }) {
+  const greet = greetingForHour(new Date().getHours());
+  const person = firstName(name);
+  const today = new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date());
+
+  return (
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-lg font-semibold tracking-tight text-slate-900">
+          {greet}
+          {person ? `, ${person}` : ''}
+        </p>
+        <p className="text-sm capitalize text-slate-500">{today}</p>
+      </div>
+    </div>
+  );
 }
 
 export function DashboardPage() {
@@ -97,6 +133,11 @@ export function DashboardPage() {
           variant === 'penangkar' ? 'MOBILE' : 'DASHBOARD',
         )
       ).data.data,
+  });
+  const distQ = useQuery({
+    queryKey: ['dash', 'seed-distributions', variant],
+    queryFn: async () => (await dashboardApi.seedDistributions()).data.data,
+    enabled: variant === 'executive',
   });
 
   const requiredLoading = [
@@ -188,27 +229,27 @@ export function DashboardPage() {
               tone="violet"
             />
           </div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch">
             {status && (
-              <div className="xl:col-span-3">
+              <div className="min-w-0">
                 <CertificationStatusChart
                   total={status.total}
                   items={status.items}
                 />
               </div>
             )}
-            <div className="xl:col-span-3">
+            <div className="min-w-0">
               <PriorityTaskCard items={priorities} />
             </div>
-            <div className="xl:col-span-6">
-              <MapCard markers={map} />
-            </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-            <div className="xl:col-span-7">
+          <ErrorBoundary>
+            <MapCard markers={map} />
+          </ErrorBoundary>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch">
+            <div className="min-w-0">
               <ProductionChart data={production} />
             </div>
-            <div className="xl:col-span-5">
+            <div className="min-w-0">
               <ScheduleList items={today} />
             </div>
           </div>
@@ -220,15 +261,18 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <DashboardBannerCarousel items={banners} />
+    <div className="space-y-5">
+      <DashboardIntro name={user?.name} />
+      <ErrorBoundary>
+        <DashboardBannerCarousel items={banners} />
+      </ErrorBoundary>
 
       <div
         className={cn(
-          'grid gap-3 sm:gap-4',
+          'grid gap-4',
           variant === 'pbt'
             ? 'grid-cols-2 xl:grid-cols-4'
-            : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6',
+            : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
         )}
       >
         {variant === 'pbt' ? (
@@ -261,37 +305,37 @@ export function DashboardPage() {
         ) : (
           <>
             <StatCard
-              title={labels.activeProducers ?? 'Penangkar Aktif'}
+              title={labels.activeProducers ?? 'Penangkar aktif'}
               value={formatNumber(summary.activeProducers)}
               icon={Users}
               tone="emerald"
             />
             <StatCard
-              title={labels.nurseryLocations ?? 'Lokasi Pembibitan'}
+              title={labels.nurseryLocations ?? 'Lokasi pembibitan'}
               value={formatNumber(summary.nurseryLocations)}
               icon={MapPin}
               tone="teal"
             />
             <StatCard
-              title={labels.activeBatches ?? 'Batch Produksi Aktif'}
+              title={labels.activeBatches ?? 'Batch aktif'}
               value={formatNumber(summary.activeBatches)}
               icon={Sprout}
               tone="lime"
             />
             <StatCard
-              title={labels.activeSeedlings ?? 'Bibit Aktif'}
-              value={`${formatNumber(summary.activeSeedlings)} batang`}
+              title={labels.activeSeedlings ?? 'Bibit aktif'}
+              value={formatNumber(summary.activeSeedlings)}
               icon={Leaf}
               tone="green"
             />
             <StatCard
-              title={labels.applicationsThisMonth ?? 'Pengajuan Bulan Ini'}
+              title={labels.applicationsThisMonth ?? 'Pengajuan bulan ini'}
               value={formatNumber(summary.applicationsThisMonth)}
               icon={FileText}
               tone="sky"
             />
             <StatCard
-              title={labels.scannedCertificates ?? 'Sertifikat Scan Terunggah'}
+              title={labels.scannedCertificates ?? 'Scan sertifikat'}
               value={formatNumber(summary.scannedCertificates)}
               icon={Award}
               tone="violet"
@@ -300,59 +344,86 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
         {variant !== 'pbt' && status && (
-          <div className="xl:col-span-3">
+          <div className="min-w-0">
             <CertificationStatusChart total={status.total} items={status.items} />
           </div>
         )}
-        <div className={variant === 'pbt' ? 'xl:col-span-5' : 'xl:col-span-3'}>
+        <div className="min-w-0">
           <PriorityTaskCard items={priorities} />
         </div>
-        {variant !== 'pbt' ? (
-          <div className="xl:col-span-6">
-            <MapCard markers={map} />
-          </div>
-        ) : (
-          <div className="xl:col-span-7">
+        {variant === 'pbt' ? (
+          <div className="min-w-0">
             <ScheduleList items={today} />
           </div>
-        )}
+        ) : null}
       </div>
 
+      {variant === 'executive' && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
+          <div className="min-w-0">
+            <ErrorBoundary>
+              <MapCard markers={map} compact />
+            </ErrorBoundary>
+          </div>
+          <div className="min-w-0">
+            <ErrorBoundary>
+              {distQ.isLoading ? (
+                <div className="flex h-full min-h-[28rem] items-center justify-center rounded-xl border border-border bg-card p-8 text-sm text-[var(--text-secondary)] shadow-soft">
+                  Memuat data distribusi bibit...
+                </div>
+              ) : distQ.data ? (
+                <SeedDistributionCard data={distQ.data} />
+              ) : (
+                <div className="flex h-full min-h-[28rem] items-center justify-center rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  Data distribusi bibit belum dapat dimuat.
+                </div>
+              )}
+            </ErrorBoundary>
+          </div>
+        </div>
+      )}
+
       {variant !== 'pbt' && (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-          <div className="xl:col-span-7">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
+          <div className="min-w-0">
             <ProductionChart data={production} />
           </div>
-          <div className="xl:col-span-5">
+          <div className="min-w-0">
             <ScheduleList items={today} />
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch">
         {(variant === 'executive' || variant === 'pbt') && (
-          <div className="xl:col-span-4">
+          <div className="min-w-0 lg:col-span-5">
             <InspectorPerformance items={pbt} />
           </div>
         )}
-        <div className="xl:col-span-8">
+        <div
+          className={cn(
+            'min-w-0',
+            variant === 'executive' || variant === 'pbt'
+              ? 'lg:col-span-7'
+              : 'lg:col-span-12',
+          )}
+        >
           <RecentApplicationsTable items={apps} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+      <div className={cn(
+        'grid grid-cols-1 gap-4 lg:items-stretch',
+        variant === 'executive' && scans ? 'lg:grid-cols-2' : 'lg:grid-cols-1',
+      )}>
         {variant === 'executive' && scans && (
-          <div className="xl:col-span-5">
+          <div className="min-w-0">
             <CertificateScanCard data={scans} />
           </div>
         )}
-        <div
-          className={
-            variant === 'executive' ? 'xl:col-span-7' : 'xl:col-span-12'
-          }
-        >
+        <div className="min-w-0">
           <ActivityTimeline items={activities} />
         </div>
       </div>

@@ -81,6 +81,16 @@ Opsi:
 
 ---
 
+## Linux aaPanel + Apache (lengkap)
+
+Panduan langkah demi langkah (Node 20, pnpm, MySQL, PM2 port 3111, reverse proxy Apache):
+
+→ [`docs/deployment-aapanel-apache.md`](deployment-aapanel-apache.md)
+
+Domain contoh di dokumen: `siperbun.rebornpartner.xyz`.
+
+---
+
 ## Linux (nginx + PM2)
 
 ### Contoh nginx

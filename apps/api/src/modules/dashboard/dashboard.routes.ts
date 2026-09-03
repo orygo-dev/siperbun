@@ -124,6 +124,17 @@ dashboardRouter.get('/recent-activities', async (req, res, next) => {
   }
 });
 
+dashboardRouter.get('/seed-distributions', async (req, res, next) => {
+  try {
+    return success(
+      res,
+      await dashboardService.seedDistributionsSummary(scopeFrom(req)),
+    );
+  } catch (e) {
+    next(e);
+  }
+});
+
 dashboardRouter.get('/banners', async (req, res, next) => {
   try {
     const placement =

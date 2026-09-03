@@ -1,11 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { LoadingState } from '../../components/common/LoadingState';
 import { PageHeader } from '../../components/common/PageHeader';
 import { seedDistributionsApi } from '../../services/seedDistributions';
 
 export function DistributionDetailPage() {
   const { id = '' } = useParams();
+  const { pathname } = useLocation();
+  const listPath = pathname.startsWith('/distribusi')
+    ? '/distribusi'
+    : '/label-distribusi?tab=distribusi';
   const query = useQuery({
     queryKey: ['seed-distribution', id],
     enabled: !!id,
@@ -28,7 +32,7 @@ export function DistributionDetailPage() {
         subtitle="Detail distribusi bibit"
         actions={
           <Link
-            to="/label-distribusi?tab=distribusi"
+            to={listPath}
             className="text-sm text-primary hover:underline"
           >
             Kembali

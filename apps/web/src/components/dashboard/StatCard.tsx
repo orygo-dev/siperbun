@@ -91,22 +91,22 @@ export function StatCard({
           t.glow,
         )}
       />
-      <div className="relative flex items-start justify-between gap-3">
+      <div className="relative flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className={cn('text-xs font-semibold uppercase tracking-wide', t.title)}>
+          <div className={cn('line-clamp-2 text-[11px] font-medium leading-snug', t.title)}>
             {title}
           </div>
-          <div className={cn('mt-2 text-2xl font-semibold tracking-tight', t.value)}>
+          <div className={cn('mt-1.5 text-xl font-semibold tracking-tight xl:text-[22px]', t.value)}>
             {value}
           </div>
         </div>
         <div
           className={cn(
-            'rounded-xl p-2.5 transition duration-300 group-hover:scale-105',
+            'shrink-0 rounded-xl p-2 transition duration-300 group-hover:scale-105',
             t.iconWrap,
           )}
         >
-          <Icon size={18} />
+          <Icon size={16} />
         </div>
       </div>
     </div>

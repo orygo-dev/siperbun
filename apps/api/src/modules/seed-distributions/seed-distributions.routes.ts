@@ -6,7 +6,7 @@ import {
 import { Router } from 'express';
 import {
   authenticate,
-  requirePermission,
+  requireAnyPermission,
 } from '../../middlewares/auth';
 import { validateBody } from '../../middlewares/validate';
 import { AuthedRequest, success } from '../../utils/response';
@@ -18,7 +18,10 @@ seedDistributionsRouter.use(authenticate);
 
 seedDistributionsRouter.get(
   '/',
-  requirePermission(PERMISSIONS.CERTIFICATE_VIEW),
+  requireAnyPermission(
+    PERMISSIONS.CERTIFICATE_VIEW,
+    PERMISSIONS.DISTRIBUTION_VIEW,
+  ),
   async (req, res, next) => {
     try {
       const user = (req as AuthedRequest).user!;
@@ -47,12 +50,15 @@ seedDistributionsRouter.get(
 
 seedDistributionsRouter.post(
   '/',
-  requirePermission(PERMISSIONS.CERTIFICATE_UPLOAD),
+  requireAnyPermission(
+    PERMISSIONS.CERTIFICATE_UPLOAD,
+    PERMISSIONS.DISTRIBUTION_CREATE,
+  ),
   validateBody(seedDistributionCreateSchema),
   async (req, res, next) => {
     try {
       const user = (req as AuthedRequest).user!;
-      const item = await seedDistributionsService.create(req.body, user.id);
+      const item = await seedDistributionsService.create(req.body, user);
       return success(res, item, 'Distribusi bibit berhasil dicatat', 201);
     } catch (e) {
       next(e);
@@ -62,7 +68,10 @@ seedDistributionsRouter.post(
 
 seedDistributionsRouter.get(
   '/:id',
-  requirePermission(PERMISSIONS.CERTIFICATE_VIEW),
+  requireAnyPermission(
+    PERMISSIONS.CERTIFICATE_VIEW,
+    PERMISSIONS.DISTRIBUTION_VIEW,
+  ),
   async (req, res, next) => {
     try {
       const user = (req as AuthedRequest).user!;
@@ -79,7 +88,10 @@ seedDistributionsRouter.get(
 
 seedDistributionsRouter.put(
   '/:id',
-  requirePermission(PERMISSIONS.CERTIFICATE_UPLOAD),
+  requireAnyPermission(
+    PERMISSIONS.CERTIFICATE_UPLOAD,
+    PERMISSIONS.DISTRIBUTION_CREATE,
+  ),
   validateBody(seedDistributionUpdateSchema),
   async (req, res, next) => {
     try {
@@ -87,7 +99,7 @@ seedDistributionsRouter.put(
       const item = await seedDistributionsService.update(
         String(req.params.id),
         req.body,
-        user.id,
+        user,
       );
       return success(res, item, 'Distribusi bibit berhasil diperbarui');
     } catch (e) {
@@ -98,13 +110,16 @@ seedDistributionsRouter.put(
 
 seedDistributionsRouter.delete(
   '/:id',
-  requirePermission(PERMISSIONS.CERTIFICATE_UPLOAD),
+  requireAnyPermission(
+    PERMISSIONS.CERTIFICATE_UPLOAD,
+    PERMISSIONS.DISTRIBUTION_CREATE,
+  ),
   async (req, res, next) => {
     try {
       const user = (req as AuthedRequest).user!;
       const item = await seedDistributionsService.softDelete(
         String(req.params.id),
-        user.id,
+        user,
       );
       return success(res, item, 'Distribusi bibit berhasil dihapus');
     } catch (e) {

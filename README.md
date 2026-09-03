@@ -142,6 +142,7 @@ ecosystem.config.cjs   Contoh PM2
 | [`docs/roles-permissions.md`](docs/roles-permissions.md) | Role & PERMISSIONS |
 | [`docs/certification-workflow.md`](docs/certification-workflow.md) | Alur status pengajuan |
 | [`docs/deployment.md`](docs/deployment.md) | Deploy Windows/Linux |
+| [`docs/deployment-aapanel-apache.md`](docs/deployment-aapanel-apache.md) | **Deploy aaPanel + Apache (lengkap)** |
 | [`docs/testing.md`](docs/testing.md) | Cara menjalankan tes |
 | [`docs/changelog-stages.md`](docs/changelog-stages.md) | Ringkasan Stage 1–7 |
 

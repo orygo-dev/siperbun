@@ -2,7 +2,7 @@ import type { InspectorItem } from '../../services/dashboard';
 
 export function InspectorPerformance({ items }: { items: InspectorItem[] }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-soft">
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-soft">
       <h3 className="text-sm font-semibold">Kinerja PBT</h3>
       <div className="mt-3 space-y-3">
         {items.map((item) => (

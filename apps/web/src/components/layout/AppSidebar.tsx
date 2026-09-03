@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Award,
   Tags,
+  Truck,
   Shield,
   BarChart3,
   Settings,
@@ -34,6 +35,7 @@ const menus: Array<{
   perm?: string;
   anyPerm?: string[];
   roles?: string[];
+  excludeRoles?: string[];
 }> = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: PERMISSIONS.DASHBOARD_VIEW },
   { to: '/penangkar', label: 'Penangkar', icon: Users, perm: PERMISSIONS.PRODUCER_VIEW },
@@ -65,7 +67,19 @@ const menus: Array<{
     to: '/label-distribusi',
     label: 'Label & Distribusi',
     icon: Tags,
-    anyPerm: [PERMISSIONS.CERTIFICATE_UPLOAD, PERMISSIONS.CERTIFICATE_VERIFY],
+    anyPerm: [
+      PERMISSIONS.CERTIFICATE_UPLOAD,
+      PERMISSIONS.CERTIFICATE_VERIFY,
+      PERMISSIONS.DISTRIBUTION_VIEW,
+    ],
+    excludeRoles: [ROLES.PENANGKAR],
+  },
+  {
+    to: '/distribusi',
+    label: 'Distribusi Bibit',
+    icon: Truck,
+    perm: PERMISSIONS.DISTRIBUTION_VIEW,
+    roles: [ROLES.PENANGKAR],
   },
   {
     to: '/pengawasan',
@@ -125,8 +139,9 @@ export function AppSidebar({
   const hasAnyPermission = useAuthStore((s) => s.hasAnyPermission);
   const branding = useBrandingStore((s) => s.branding);
   const visible = menus.filter((m) => {
-    if (m.roles?.length) {
-      return m.roles.some((r) => user?.roles.includes(r));
+    if (m.excludeRoles?.some((r) => user?.roles.includes(r))) return false;
+    if (m.roles?.length && !m.roles.some((r) => user?.roles.includes(r))) {
+      return false;
     }
     if (m.anyPerm) return hasAnyPermission(...m.anyPerm);
     if (m.perm) return hasPermission(m.perm);
@@ -153,7 +168,12 @@ export function AppSidebar({
               : '-translate-x-full lg:translate-x-0',
         )}
       >
-        <div className="flex h-16 items-center border-b border-border px-4">
+        <div
+          className={cn(
+            'flex h-16 shrink-0 items-center border-b border-border',
+            showExpanded ? 'px-4' : 'justify-center px-2',
+          )}
+        >
           <BrandLogo size="md" />
         </div>
 

@@ -33,6 +33,13 @@ type Props = {
   native?: boolean;
 };
 
+function realSlideIndex(index: number, count: number) {
+  if (count <= 0) return 0;
+  if (count === 1) return 0;
+  const shifted = index - 1;
+  return ((shifted % count) + count) % count;
+}
+
 export function DashboardBannerCarousel({ items, native = false }: Props) {
   const count = items.length;
   /**
@@ -51,16 +58,20 @@ export function DashboardBannerCarousel({ items, native = false }: Props) {
   useEffect(() => {
     setIndex(count > 1 ? 1 : 0);
     setAnimate(true);
+    jumping.current = false;
   }, [count]);
 
   useEffect(() => {
     if (count <= 1 || paused) return;
     const timer = window.setInterval(() => {
       setAnimate(true);
-      setIndex((i) => i + 1);
+      setIndex((i) => {
+        if (native) return i >= count + 1 ? 1 : i + 1;
+        return i >= count ? 1 : i + 1;
+      });
     }, AUTOPLAY_MS);
     return () => window.clearInterval(timer);
-  }, [count, paused]);
+  }, [count, paused, native]);
 
   function handleTransitionEnd() {
     if (count <= 1 || jumping.current) return;
@@ -93,14 +104,9 @@ export function DashboardBannerCarousel({ items, native = false }: Props) {
 
   if (count === 0) return null;
 
-  const activeDot =
-    count <= 1
-      ? 0
-      : index === 0
-        ? count - 1
-        : index === count + 1
-          ? 0
-          : index - 1;
+  const activeDot = realSlideIndex(index, count);
+  const current = items[activeDot];
+  if (!current) return null;
 
   function go(delta: number) {
     if (count <= 1 || jumping.current) return;
@@ -151,7 +157,8 @@ export function DashboardBannerCarousel({ items, native = false }: Props) {
             }}
             onTransitionEnd={handleTransitionEnd}
           >
-            {trackItems.map((item, i) => (
+            {trackItems.map((item, i) =>
+              item ? (
               <div
                 key={`${item.id}-${i}`}
                 className="w-full shrink-0 grow-0 basis-full"
@@ -162,7 +169,8 @@ export function DashboardBannerCarousel({ items, native = false }: Props) {
                   active={i === index}
                 />
               </div>
-            ))}
+              ) : null,
+            )}
           </div>
         </div>
 
@@ -188,7 +196,6 @@ export function DashboardBannerCarousel({ items, native = false }: Props) {
     );
   }
 
-  const current = items[activeDot]!;
   const imageSrc = bannerImageSrc(current.imageUrl);
   const theme = SLIDE_THEMES[activeDot % SLIDE_THEMES.length]!;
   const hasTitle = Boolean(current.title?.trim());
@@ -257,7 +264,7 @@ export function DashboardBannerCarousel({ items, native = false }: Props) {
         current.linkUrl.startsWith('/') ? (
           <Link
             to={current.linkUrl}
-            className="relative block h-[160px] overflow-hidden rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.08)] sm:h-[180px] lg:h-[200px]"
+            className="relative block h-[140px] overflow-hidden rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.08)] sm:h-[160px] lg:h-[176px]"
           >
             {desktopInner}
           </Link>
@@ -266,13 +273,13 @@ export function DashboardBannerCarousel({ items, native = false }: Props) {
             href={current.linkUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="relative block h-[160px] overflow-hidden rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.08)] sm:h-[180px] lg:h-[200px]"
+            className="relative block h-[140px] overflow-hidden rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.08)] sm:h-[160px] lg:h-[176px]"
           >
             {desktopInner}
           </a>
         )
       ) : (
-        <div className="relative h-[160px] overflow-hidden rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.08)] sm:h-[180px] lg:h-[200px]">
+        <div className="relative h-[140px] overflow-hidden rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.08)] sm:h-[160px] lg:h-[176px]">
           {desktopInner}
         </div>
       )}

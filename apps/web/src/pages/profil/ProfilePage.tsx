@@ -20,6 +20,7 @@ import {
   LogOut,
   Map,
   Sprout,
+  Truck,
   UserRound,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -118,8 +119,9 @@ export function ProfilePage() {
   const shortcuts = [
     { to: '/sumber-benih', label: 'Sumber Benih', icon: Sprout },
     { to: '/produksi', label: 'Produksi', icon: Leaf },
-    { to: '/pemeriksaan', label: 'Pemeriksaan', icon: ClipboardCheck },
+    { to: '/distribusi', label: 'Distribusi', icon: Truck },
     { to: '/sertifikat', label: 'Sertifikat', icon: Award },
+    { to: '/pemeriksaan', label: 'Pemeriksaan', icon: ClipboardCheck },
     { to: '/peta', label: 'Peta', icon: Map },
   ];
 
@@ -172,7 +174,7 @@ export function ProfilePage() {
       {isPenangkar && (
         <section className="rounded-2xl border border-border bg-white p-4 shadow-soft lg:hidden">
           <h3 className="mb-3 text-sm font-semibold text-slate-800">Menu cepat</h3>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {shortcuts.map((item) => (
               <Link
                 key={item.to}

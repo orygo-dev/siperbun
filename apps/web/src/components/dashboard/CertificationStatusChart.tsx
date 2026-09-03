@@ -12,14 +12,14 @@ export function CertificationStatusChart({
   items: StatusItem[];
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-soft">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Status Proses Sertifikasi</h3>
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-soft">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Status Sertifikasi</h3>
         <Link
           to="/pengajuan"
-          className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary-light"
+          className="shrink-0 text-xs font-medium text-primary hover:underline"
         >
-          Lihat Detail
+          Lihat semua
         </Link>
       </div>
       <div className="relative mx-auto h-[200px] w-full">
