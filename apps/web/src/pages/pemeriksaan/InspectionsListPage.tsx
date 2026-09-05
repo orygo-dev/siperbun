@@ -10,6 +10,7 @@ import { PageHeader } from '../../components/common/PageHeader';
 import { PermissionGuard } from '../../components/common/PermissionGuard';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DataTable, type DataTableColumn } from '../../components/tables/DataTable';
+import { resolveApiV1 } from '../../lib/api';
 import { useDebounce } from '../../hooks/useDebounce';
 import {
   inspectionsApi,
@@ -536,7 +537,7 @@ export function InspectionDetailPage() {
             <div key={p.id} className="rounded-lg border border-border p-2">
               {p.file?.mimeType.startsWith('image/') ? (
                 <img
-                  src={`${import.meta.env.VITE_API_URL || 'http://localhost:3111/api/v1'}/files/${p.file.id}`}
+                  src={`${resolveApiV1()}/files/${p.file.id}`}
                   alt={p.caption ?? p.file.originalName}
                   className="h-32 w-full rounded object-cover"
                 />

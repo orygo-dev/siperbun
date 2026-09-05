@@ -35,7 +35,9 @@ export function createApp() {
     }),
   );
 
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  if (env.isDev) {
+    app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  }
   app.use('/api/v1', v1Router);
 
   app.use(notFound);

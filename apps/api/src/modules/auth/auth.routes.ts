@@ -104,6 +104,7 @@ authRouter.patch(
 authRouter.post(
   '/change-password',
   authenticate,
+  authLimiter,
   validateBody(changePasswordSchema),
   async (req, res, next) => {
     try {

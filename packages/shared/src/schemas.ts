@@ -31,7 +31,7 @@ export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Password saat ini wajib diisi'),
-    newPassword: z.string().min(6, 'Password baru minimal 6 karakter'),
+    newPassword: z.string().min(8, 'Password baru minimal 8 karakter'),
     confirmPassword: z.string().min(1, 'Konfirmasi password wajib diisi'),
   })
   .refine((v) => v.newPassword === v.confirmPassword, {

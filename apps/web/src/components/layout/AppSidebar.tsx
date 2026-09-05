@@ -92,7 +92,11 @@ const menus: Array<{
     to: '/peta',
     label: 'Peta',
     icon: Map,
-    anyPerm: [PERMISSIONS.PRODUCER_VIEW, PERMISSIONS.APPLICATION_VERIFY],
+    anyPerm: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCER_VIEW,
+      PERMISSIONS.APPLICATION_VERIFY,
+    ],
   },
   {
     to: '/profil',

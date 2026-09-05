@@ -16,6 +16,7 @@ import { PageHeader } from '../../components/common/PageHeader';
 import { PermissionGuard } from '../../components/common/PermissionGuard';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DataTable, type DataTableColumn } from '../../components/tables/DataTable';
+import { resolveApiV1 } from '../../lib/api';
 import { useDebounce } from '../../hooks/useDebounce';
 import {
   findingsApi,
@@ -308,7 +309,7 @@ export function FindingDetailPage() {
               ) : null}
               {ca.file ? (
                 <a
-                  href={`${import.meta.env.VITE_API_URL || 'http://localhost:3111/api/v1'}/files/${ca.file.id}`}
+                  href={`${resolveApiV1()}/files/${ca.file.id}`}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-1 inline-block text-xs text-primary hover:underline"

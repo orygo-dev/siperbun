@@ -55,7 +55,7 @@ VITE_API_URL=https://siperbun.example.go.id/api/v1
 pnpm install
 pnpm db:generate
 pnpm db:push
-pnpm db:seed
+pnpm db:seed   # jangan dijalankan di production: seed menghapus seluruh tabel kecuali ALLOW_DB_SEED=true
 pnpm build
 ```
 

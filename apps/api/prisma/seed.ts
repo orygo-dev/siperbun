@@ -97,6 +97,15 @@ function pick<T>(arr: T[], i: number): T {
 }
 
 async function main() {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.ALLOW_DB_SEED !== 'true'
+  ) {
+    throw new Error(
+      'Seed ditolak di production karena menghapus seluruh data. Set ALLOW_DB_SEED=true hanya jika Anda sadar risikonya.',
+    );
+  }
+
   console.log('🌱 Seeding SIPERBUN...');
 
   // Clean in FK-safe order (dev only)

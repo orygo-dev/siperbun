@@ -1,9 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import {
-  Award,
   FileText,
   LayoutDashboard,
   Leaf,
+  Truck,
   UserRound,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -12,7 +12,7 @@ const tabs = [
   { to: '/dashboard', label: 'Beranda', icon: LayoutDashboard, end: true },
   { to: '/produksi', label: 'Produksi', icon: Leaf },
   { to: '/pengajuan', label: 'Pengajuan', icon: FileText },
-  { to: '/sertifikat', label: 'Sertifikat', icon: Award },
+  { to: '/distribusi', label: 'Distribusi', icon: Truck },
   { to: '/profil', label: 'Profil', icon: UserRound },
 ] as const;
 

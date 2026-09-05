@@ -6,7 +6,7 @@ import {
 import { Router } from 'express';
 import { authenticate, requirePermission } from '../../middlewares/auth';
 import { validateBody } from '../../middlewares/validate';
-import { success } from '../../utils/response';
+import { AuthedRequest, success } from '../../utils/response';
 import { producersService } from './producers.service';
 
 export const producersRouter = Router();
@@ -27,7 +27,7 @@ producersRouter.get(
         isActive: req.query.isActive as string | undefined,
         sortBy: req.query.sortBy as string | undefined,
         sortOrder: req.query.sortOrder as 'asc' | 'desc' | undefined,
-      });
+      }, (req as AuthedRequest).user!);
       return success(
         res,
         result.items,
@@ -46,7 +46,10 @@ producersRouter.get(
   requirePermission(PERMISSIONS.PRODUCER_VIEW),
   async (req, res, next) => {
     try {
-      const item = await producersService.getById(String(req.params.id));
+      const item = await producersService.getById(
+        String(req.params.id),
+        (req as AuthedRequest).user!,
+      );
       return success(res, item, 'Detail penangkar berhasil dimuat');
     } catch (e) {
       next(e);

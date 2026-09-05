@@ -1,4 +1,4 @@
-import { api, type ApiResponse } from '../lib/api';
+import { api, resolveApiOrigin, type ApiResponse } from '../lib/api';
 
 export type Branding = {
   appName: string;
@@ -79,9 +79,7 @@ export type PortalContentResponse = {
 
 export type PortalMediaSlot = 'hero' | 'service';
 
-const API_BASE =
-  import.meta.env.VITE_API_URL?.replace(/\/api\/v1\/?$/, '') ||
-  'http://localhost:3111';
+const API_BASE = resolveApiOrigin();
 
 /** Absolute URL for logo (works on login without auth) */
 export function brandingLogoSrc(logoUrl: string | null | undefined) {

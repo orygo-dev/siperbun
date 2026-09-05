@@ -211,7 +211,9 @@ cd /www/wwwroot/siperbun.rebornpartner.xyz
 
 pnpm db:generate
 pnpm db:push
-pnpm db:seed          # opsional — data demo; password demo wajib diganti setelah live
+# Jangan seed di production: perintah ini menghapus seluruh tabel.
+# Hanya jika sadar risikonya: ALLOW_DB_SEED=true pnpm db:seed
+# pnpm db:seed
 
 mkdir -p apps/api/storage
 chmod 750 apps/api/storage

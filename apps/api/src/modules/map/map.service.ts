@@ -6,8 +6,8 @@ export const mapService = {
   async markers(scope: DashboardScope = { roles: [] }) {
     const base = await dashboardService.distributionMap(scope);
 
-    // Marker pengawasan hanya untuk staf dinas (bukan penangkar)
-    if (scope.producerId) {
+    // Marker pengawasan hanya untuk staf dinas (bukan penangkar / PBT)
+    if (scope.producerId || scope.inspectorId) {
       return base;
     }
 

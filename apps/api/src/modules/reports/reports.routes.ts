@@ -5,8 +5,13 @@ import {
   requirePermission,
 } from '../../middlewares/auth';
 import { AppError } from '../../utils/errors';
-import { success } from '../../utils/response';
-import { reportsService, toCsv, type ReportFilters } from './reports.service';
+import { AuthedRequest, success } from '../../utils/response';
+import {
+  applyUserScope,
+  reportsService,
+  toCsv,
+  type ReportFilters,
+} from './reports.service';
 
 export const reportsRouter = Router();
 
@@ -24,7 +29,18 @@ function parseFilters(query: Record<string, unknown>): ReportFilters {
     status: query.status as string | undefined,
     page: query.page ? Number(query.page) : 1,
     limit: query.limit ? Number(query.limit) : 50,
+    maxLimit: query.maxLimit ? Number(query.maxLimit) : undefined,
   };
+}
+
+function scopedFilters(
+  req: AuthedRequest,
+  extra?: Partial<ReportFilters>,
+): ReportFilters {
+  return applyUserScope(
+    { ...parseFilters(req.query), ...extra },
+    req.user!,
+  );
 }
 
 reportsRouter.get(
@@ -32,7 +48,9 @@ reportsRouter.get(
   requirePermission(PERMISSIONS.REPORT_VIEW),
   async (req, res, next) => {
     try {
-      const data = await reportsService.summary(parseFilters(req.query));
+      const data = await reportsService.summary(
+        scopedFilters(req as AuthedRequest),
+      );
       return success(res, data, 'Ringkasan laporan berhasil dimuat');
     } catch (e) {
       next(e);
@@ -48,7 +66,7 @@ for (const type of REPORT_TYPES) {
       try {
         const result = await reportsService.getByType(
           type,
-          parseFilters(req.query),
+          scopedFilters(req as AuthedRequest),
         );
         return success(
           res,
@@ -80,7 +98,11 @@ reportsRouter.get(
 
       const result = await reportsService.getByType(
         type,
-        parseFilters({ ...req.query, page: 1, limit: 5000 }),
+        scopedFilters(req as AuthedRequest, {
+          page: 1,
+          limit: 2000,
+          maxLimit: 2000,
+        }),
       );
       const csv = toCsv(result.columns, result.items as Array<Record<string, unknown>>);
       const filename = `laporan-${type}-${new Date().toISOString().slice(0, 10)}.csv`;

@@ -318,7 +318,7 @@ Gunakan dua browser/profil atau logout–login bergantian.
 4. **Penangkar tidak mengunggah scan resmi.**
 5. File scan disimpan di server (`storage/…`), bukan di database sebagai Base64.
 6. Ganti password demo sebelum production.
-7. Untuk data demo lengkap ulang: `pnpm db:seed` (menghapus & mengisi ulang data seed).
+7. Untuk data demo lengkap ulang: `pnpm db:seed` (menghapus & mengisi ulang data seed). Jangan dijalankan di production kecuali `ALLOW_DB_SEED=true`.
 
 ---
 

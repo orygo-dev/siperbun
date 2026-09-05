@@ -29,7 +29,7 @@ export function CertificateFormPage() {
       const res = await applicationsApi.list({
         page: 1,
         limit: 100,
-        status: ApplicationStatus.INSPECTION_PASSED,
+        status: ApplicationStatus.PAYMENT_VERIFIED,
       });
       return res.data.data ?? [];
     },
@@ -95,11 +95,14 @@ export function CertificateFormPage() {
   );
 
   return (
-    <PermissionGuard permission={PERMISSIONS.CERTIFICATE_UPLOAD}>
+    <PermissionGuard
+      permission={[PERMISSIONS.CERTIFICATE_UPLOAD, PERMISSIONS.APPLICATION_VERIFY]}
+      mode="any"
+    >
       <div className="mx-auto max-w-2xl space-y-6">
         <PageHeader
           title="Tambah Sertifikat"
-          subtitle="Buat sertifikat dari pengajuan yang lulus pemeriksaan"
+          subtitle="Buat sertifikat dari pengajuan yang pembayarannya sudah lunas"
           actions={
             <Link
               to="/sertifikat"
@@ -126,7 +129,7 @@ export function CertificateFormPage() {
           >
             <label className="block text-sm">
               <span className="mb-1 block text-xs text-[var(--text-secondary)]">
-                Pengajuan (Lulus Pemeriksaan)
+                Pengajuan (Pembayaran Lunas)
               </span>
               <select
                 required
@@ -153,7 +156,7 @@ export function CertificateFormPage() {
               </select>
               {eligibleApps.length === 0 ? (
                 <p className="mt-1 text-xs text-amber-700">
-                  Tidak ada pengajuan lulus tanpa sertifikat.
+                  Tidak ada pengajuan lunas tanpa sertifikat.
                 </p>
               ) : null}
             </label>

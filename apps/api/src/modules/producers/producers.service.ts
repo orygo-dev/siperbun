@@ -5,7 +5,32 @@ import {
 } from '@siperbun/shared';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import {
+  type AccessUser,
+  isInspectorUser,
+} from '../../utils/access-scope';
 import { AppError } from '../../utils/errors';
+
+function assignedProducerWhere(
+  inspectorId: string,
+): Prisma.ProducerWhereInput {
+  return {
+    applications: {
+      some: {
+        deletedAt: null,
+        assignments: { some: { inspectorId, deletedAt: null } },
+      },
+    },
+  };
+}
+
+function redactForInspector<T extends Record<string, unknown>>(
+  row: T,
+  user?: AccessUser,
+): T {
+  if (!user || !isInspectorUser(user)) return row;
+  return { ...row, nik: null };
+}
 
 function serializeProducer<T extends Record<string, unknown>>(p: T) {
   const row = p as T & {
@@ -49,7 +74,7 @@ export const producersService = {
     isActive?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
-  }) {
+  }, user: AccessUser) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
     const search = String(query.search ?? '').trim();
@@ -83,6 +108,9 @@ export const producersService = {
         : query.isActive === 'false'
           ? { isActive: false }
           : {}),
+      ...(isInspectorUser(user)
+        ? assignedProducerWhere(user.id)
+        : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -99,7 +127,9 @@ export const producersService = {
     ]);
 
     return {
-      items: items.map((p) => serializeProducer(p)),
+      items: items.map((p) =>
+        redactForInspector(serializeProducer(p) as Record<string, unknown>, user),
+      ),
       meta: {
         page,
         limit,
@@ -109,7 +139,7 @@ export const producersService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, user: AccessUser) {
     const item = await prisma.producer.findFirst({
       where: { id, deletedAt: null },
       include: {
@@ -156,8 +186,34 @@ export const producersService = {
     });
     if (!item) throw new AppError('Penangkar tidak ditemukan', 404);
 
+    if (isInspectorUser(user)) {
+      const assigned = await prisma.fieldAssignment.findFirst({
+        where: {
+          inspectorId: user.id,
+          deletedAt: null,
+          application: { producerId: id, deletedAt: null },
+        },
+        select: { id: true },
+      });
+      if (!assigned) throw new AppError('Penangkar tidak ditemukan', 404);
+    }
+
+    const serialized = serializeProducer(item);
+    const documents = isInspectorUser(user)
+      ? []
+      : item.documents.map((document) => ({
+          ...document,
+          file: document.file
+            ? {
+                ...document.file,
+                size: Number(document.file.size),
+                url: `/api/v1/files/${document.file.id}`,
+              }
+            : null,
+        }));
+
     return {
-      ...serializeProducer(item),
+      ...redactForInspector(serialized as Record<string, unknown>, user),
       nurseries: item.nurseries.map((n) => ({
         ...n,
         capacity: n.capacity != null ? Number(n.capacity) : null,
@@ -167,16 +223,7 @@ export const producersService = {
         ...g,
         areaHa: g.areaHa != null ? Number(g.areaHa) : null,
       })),
-      documents: item.documents.map((document) => ({
-        ...document,
-        file: document.file
-          ? {
-              ...document.file,
-              size: Number(document.file.size),
-              url: `/api/v1/files/${document.file.id}`,
-            }
-          : null,
-      })),
+      documents,
     };
   },
 

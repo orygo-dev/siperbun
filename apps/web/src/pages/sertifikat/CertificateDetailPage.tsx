@@ -9,10 +9,11 @@ import { LoadingState } from '../../components/common/LoadingState';
 import { PageHeader } from '../../components/common/PageHeader';
 import { PermissionGuard } from '../../components/common/PermissionGuard';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { resolveApiV1 } from '../../lib/api';
 import { certificatesApi } from '../../services/certificates';
 import { useAuthStore } from '../../stores/authStore';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3111/api/v1';
+const API_BASE = resolveApiV1();
 
 function fileHref(fileId: string) {
   return `${API_BASE}/files/${fileId}`;

@@ -1,7 +1,18 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3111/api/v1';
+export function resolveApiV1(): string {
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  if (envUrl) return envUrl.replace(/\/$/, '');
+  if (import.meta.env.DEV) return 'http://localhost:3111/api/v1';
+  return '/api/v1';
+}
+
+export function resolveApiOrigin(): string {
+  return resolveApiV1().replace(/\/api\/v1\/?$/, '');
+}
+
+const API_URL = resolveApiV1();
 
 export const api = axios.create({
   baseURL: API_URL,

@@ -1,5 +1,11 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import {
+  type AccessUser,
+  isInspectorUser,
+  isProducerUser,
+  requireProducerId,
+} from '../../utils/access-scope';
 import { AppError } from '../../utils/errors';
 
 export type ReportFilters = {
@@ -10,10 +16,46 @@ export type ReportFilters = {
   kabupatenId?: string;
   commodityId?: string;
   producerId?: string;
+  inspectorId?: string;
   status?: string;
   page?: number;
   limit?: number;
+  maxLimit?: number;
 };
+
+export function applyUserScope(
+  filters: ReportFilters,
+  user: AccessUser,
+): ReportFilters {
+  if (isProducerUser(user)) {
+    return { ...filters, producerId: requireProducerId(user) };
+  }
+  if (isInspectorUser(user)) {
+    return { ...filters, inspectorId: user.id };
+  }
+  return filters;
+}
+
+function assignedProducerWhere(
+  inspectorId: string,
+): Prisma.ProducerWhereInput {
+  return {
+    applications: {
+      some: {
+        deletedAt: null,
+        assignments: { some: { inspectorId, deletedAt: null } },
+      },
+    },
+  };
+}
+
+function assignedApplicationWhere(
+  inspectorId: string,
+): Prisma.CertificationApplicationWhereInput {
+  return {
+    assignments: { some: { inspectorId, deletedAt: null } },
+  };
+}
 
 function dateRange(filters: ReportFilters) {
   if (filters.dateFrom || filters.dateTo) {
@@ -34,7 +76,8 @@ function dateRange(filters: ReportFilters) {
 
 function paginate(filters: ReportFilters) {
   const page = Math.max(1, Number(filters.page ?? 1));
-  const limit = Math.min(500, Math.max(1, Number(filters.limit ?? 50)));
+  const hardMax = Math.min(2000, Math.max(1, Number(filters.maxLimit ?? 500)));
+  const limit = Math.min(hardMax, Math.max(1, Number(filters.limit ?? 50)));
   return { page, limit, skip: (page - 1) * limit };
 }
 
@@ -78,6 +121,10 @@ export const reportsService = {
             ? { kabupatenId: filters.regionId ?? filters.kabupatenId }
             : {}),
           ...(filters.status ? { status: filters.status as never } : {}),
+          ...(filters.producerId ? { id: filters.producerId } : {}),
+          ...(filters.inspectorId
+            ? assignedProducerWhere(filters.inspectorId)
+            : {}),
         },
       }),
       prisma.productionBatch.count({
@@ -86,6 +133,9 @@ export const reportsService = {
           ...(range ? { createdAt: range } : {}),
           ...(filters.commodityId ? { commodityId: filters.commodityId } : {}),
           ...(filters.producerId ? { producerId: filters.producerId } : {}),
+          ...(filters.inspectorId
+            ? { producer: assignedProducerWhere(filters.inspectorId) }
+            : {}),
         },
       }),
       prisma.certificationApplication.count({
@@ -95,12 +145,19 @@ export const reportsService = {
           ...(filters.commodityId ? { commodityId: filters.commodityId } : {}),
           ...(filters.producerId ? { producerId: filters.producerId } : {}),
           ...(filters.status ? { status: filters.status as never } : {}),
+          ...(filters.inspectorId
+            ? assignedApplicationWhere(filters.inspectorId)
+            : {}),
         },
       }),
       prisma.fieldInspection.count({
         where: {
           deletedAt: null,
           ...(range ? { createdAt: range } : {}),
+          ...(filters.inspectorId ? { inspectorId: filters.inspectorId } : {}),
+          ...(filters.producerId
+            ? { assignment: { application: { producerId: filters.producerId } } }
+            : {}),
         },
       }),
       prisma.certificate.count({
@@ -109,6 +166,11 @@ export const reportsService = {
           ...(range ? { issuedAt: range } : {}),
           ...(filters.producerId ? { producerId: filters.producerId } : {}),
           ...(filters.status ? { status: filters.status as never } : {}),
+          ...(filters.inspectorId
+            ? {
+                application: assignedApplicationWhere(filters.inspectorId),
+              }
+            : {}),
         },
       }),
       prisma.seedDistribution.count({
@@ -116,12 +178,16 @@ export const reportsService = {
           deletedAt: null,
           ...(range ? { distributedAt: range } : {}),
           ...(filters.producerId ? { producerId: filters.producerId } : {}),
+          ...(filters.inspectorId
+            ? { producer: assignedProducerWhere(filters.inspectorId) }
+            : {}),
         },
       }),
       prisma.circulationInspection.count({
         where: {
           deletedAt: null,
           ...(range ? { inspectedAt: range } : {}),
+          ...(filters.inspectorId ? { id: { in: [] } } : {}),
         },
       }),
       prisma.seedLabel.count({ where: { deletedAt: null } }),
@@ -148,6 +214,9 @@ export const reportsService = {
         : {}),
       ...(filters.status ? { status: filters.status as never } : {}),
       ...(filters.producerId ? { id: filters.producerId } : {}),
+      ...(filters.inspectorId
+        ? assignedProducerWhere(filters.inspectorId)
+        : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -209,6 +278,9 @@ export const reportsService = {
       ...(filters.commodityId ? { commodityId: filters.commodityId } : {}),
       ...(filters.producerId ? { producerId: filters.producerId } : {}),
       ...(filters.status ? { status: filters.status as never } : {}),
+      ...(filters.inspectorId
+        ? { producer: assignedProducerWhere(filters.inspectorId) }
+        : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -267,6 +339,9 @@ export const reportsService = {
       ...(filters.commodityId ? { commodityId: filters.commodityId } : {}),
       ...(filters.producerId ? { producerId: filters.producerId } : {}),
       ...(filters.status ? { status: filters.status as never } : {}),
+      ...(filters.inspectorId
+        ? assignedApplicationWhere(filters.inspectorId)
+        : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -318,6 +393,10 @@ export const reportsService = {
     const where: Prisma.FieldInspectionWhereInput = {
       deletedAt: null,
       ...(range ? { createdAt: range } : {}),
+      ...(filters.inspectorId ? { inspectorId: filters.inspectorId } : {}),
+      ...(filters.producerId
+        ? { assignment: { application: { producerId: filters.producerId } } }
+        : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -384,6 +463,9 @@ export const reportsService = {
       ...(range ? { issuedAt: range } : {}),
       ...(filters.producerId ? { producerId: filters.producerId } : {}),
       ...(filters.status ? { status: filters.status as never } : {}),
+      ...(filters.inspectorId
+        ? { application: assignedApplicationWhere(filters.inspectorId) }
+        : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -435,6 +517,9 @@ export const reportsService = {
       deletedAt: null,
       ...(range ? { distributedAt: range } : {}),
       ...(filters.producerId ? { producerId: filters.producerId } : {}),
+      ...(filters.inspectorId
+        ? { producer: assignedProducerWhere(filters.inspectorId) }
+        : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -483,6 +568,7 @@ export const reportsService = {
     const where: Prisma.CirculationInspectionWhereInput = {
       deletedAt: null,
       ...(range ? { inspectedAt: range } : {}),
+      ...(filters.inspectorId || filters.producerId ? { id: { in: [] } } : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -532,6 +618,7 @@ export const reportsService = {
       where: {
         deletedAt: null,
         ...(range ? { scheduledDate: range } : {}),
+        ...(filters.inspectorId ? { inspectorId: filters.inspectorId } : {}),
       },
       include: {
         inspector: { select: { id: true, name: true, email: true } },

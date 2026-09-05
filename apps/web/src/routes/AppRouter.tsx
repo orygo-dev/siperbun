@@ -1,3 +1,5 @@
+import { PERMISSIONS } from '@siperbun/shared';
+import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { DashboardPage } from '../pages/DashboardPage';
@@ -71,6 +73,22 @@ import { PortalPenangkarDetailPage } from '../pages/portal/PortalPenangkarDetail
 import { PortalDaftarPage } from '../pages/portal/PortalDaftarPage';
 import { ProfilePage } from '../pages/profil/ProfilePage';
 import { ProtectedRoute } from './ProtectedRoute';
+import { RequirePermission } from './RequirePermission';
+
+function withPerm(
+  element: ReactNode,
+  permission: string | string[],
+  mode: 'all' | 'any' = 'all',
+) {
+  return (
+    <RequirePermission
+      permission={mode === 'all' ? permission : undefined}
+      any={mode === 'any' ? (Array.isArray(permission) ? permission : [permission]) : undefined}
+    >
+      {element}
+    </RequirePermission>
+  );
+}
 
 export function AppRouter() {
   return (
@@ -143,64 +161,213 @@ export function AppRouter() {
         <Route path="/pengajuan/:id" element={<ApplicationDetailPage />} />
         <Route path="/pengajuan/:id/verifikasi" element={<ApplicationDetailPage />} />
 
-        <Route path="/penugasan" element={<AssignmentsListPage />} />
-        <Route path="/penugasan/:id" element={<AssignmentDetailPage />} />
+        <Route
+          path="/penugasan"
+          element={withPerm(<AssignmentsListPage />, PERMISSIONS.APPLICATION_ASSIGN)}
+        />
+        <Route
+          path="/penugasan/:id"
+          element={withPerm(<AssignmentDetailPage />, PERMISSIONS.APPLICATION_ASSIGN)}
+        />
         <Route path="/pemeriksaan" element={<InspectionsListPage />} />
         <Route path="/pemeriksaan/:id" element={<InspectionDetailPage />} />
         <Route path="/temuan" element={<FindingsListPage />} />
         <Route path="/temuan/:id" element={<FindingDetailPage />} />
         <Route path="/sertifikat" element={<CertificatesListPage />} />
-        <Route path="/sertifikat/tambah" element={<CertificateFormPage />} />
+        <Route
+          path="/sertifikat/tambah"
+          element={withPerm(
+            <CertificateFormPage />,
+            [PERMISSIONS.CERTIFICATE_UPLOAD, PERMISSIONS.APPLICATION_VERIFY],
+            'any',
+          )}
+        />
         <Route
           path="/sertifikat/:id/upload-scan"
-          element={<CertificateUploadScanPage />}
+          element={withPerm(<CertificateUploadScanPage />, PERMISSIONS.CERTIFICATE_UPLOAD)}
         />
         <Route path="/sertifikat/:id" element={<CertificateDetailPage />} />
 
-        <Route path="/label-distribusi" element={<LabelsHubPage />} />
-        <Route path="/label-distribusi/label/tambah" element={<LabelFormPage />} />
-        <Route path="/label-distribusi/label/:id" element={<LabelDetailPage />} />
+        <Route
+          path="/label-distribusi"
+          element={withPerm(
+            <LabelsHubPage />,
+            [
+              PERMISSIONS.CERTIFICATE_UPLOAD,
+              PERMISSIONS.CERTIFICATE_VERIFY,
+              PERMISSIONS.DISTRIBUTION_VIEW,
+            ],
+            'any',
+          )}
+        />
+        <Route
+          path="/label-distribusi/label/tambah"
+          element={withPerm(
+            <LabelFormPage />,
+            [PERMISSIONS.CERTIFICATE_UPLOAD, PERMISSIONS.CERTIFICATE_VERIFY],
+            'any',
+          )}
+        />
+        <Route
+          path="/label-distribusi/label/:id"
+          element={withPerm(
+            <LabelDetailPage />,
+            [PERMISSIONS.CERTIFICATE_UPLOAD, PERMISSIONS.CERTIFICATE_VERIFY],
+            'any',
+          )}
+        />
         <Route
           path="/label-distribusi/distribusi/tambah"
-          element={<DistributionFormPage />}
+          element={withPerm(<DistributionFormPage />, PERMISSIONS.DISTRIBUTION_VIEW)}
         />
         <Route
           path="/label-distribusi/distribusi/:id"
-          element={<DistributionDetailPage />}
+          element={withPerm(<DistributionDetailPage />, PERMISSIONS.DISTRIBUTION_VIEW)}
         />
-        <Route path="/distribusi" element={<DistributionsListPage />} />
-        <Route path="/distribusi/tambah" element={<DistributionFormPage />} />
-        <Route path="/distribusi/:id" element={<DistributionDetailPage />} />
+        <Route
+          path="/distribusi"
+          element={withPerm(<DistributionsListPage />, PERMISSIONS.DISTRIBUTION_VIEW)}
+        />
+        <Route
+          path="/distribusi/tambah"
+          element={withPerm(<DistributionFormPage />, PERMISSIONS.DISTRIBUTION_CREATE)}
+        />
+        <Route
+          path="/distribusi/:id"
+          element={withPerm(<DistributionDetailPage />, PERMISSIONS.DISTRIBUTION_VIEW)}
+        />
 
-        <Route path="/pengawasan" element={<CirculationsListPage />} />
-        <Route path="/pengawasan/tambah" element={<CirculationFormPage />} />
-        <Route path="/pengawasan/:id" element={<CirculationDetailPage />} />
+        <Route
+          path="/pengawasan"
+          element={withPerm(
+            <CirculationsListPage />,
+            [PERMISSIONS.APPLICATION_VERIFY, PERMISSIONS.CERTIFICATE_VERIFY],
+            'any',
+          )}
+        />
+        <Route
+          path="/pengawasan/tambah"
+          element={withPerm(
+            <CirculationFormPage />,
+            [PERMISSIONS.APPLICATION_VERIFY, PERMISSIONS.CERTIFICATE_VERIFY],
+            'any',
+          )}
+        />
+        <Route
+          path="/pengawasan/:id"
+          element={withPerm(
+            <CirculationDetailPage />,
+            [PERMISSIONS.APPLICATION_VERIFY, PERMISSIONS.CERTIFICATE_VERIFY],
+            'any',
+          )}
+        />
 
-        <Route path="/laporan" element={<ReportsHubPage />} />
-        <Route path="/laporan/:type" element={<ReportDetailPage />} />
+        <Route
+          path="/laporan"
+          element={withPerm(<ReportsHubPage />, PERMISSIONS.REPORT_VIEW)}
+        />
+        <Route
+          path="/laporan/:type"
+          element={withPerm(<ReportDetailPage />, PERMISSIONS.REPORT_VIEW)}
+        />
 
-        <Route path="/peta" element={<MapPage />} />
-        <Route path="/audit-log" element={<AuditLogPage />} />
+        <Route
+          path="/peta"
+          element={withPerm(
+            <MapPage />,
+            [
+              PERMISSIONS.DASHBOARD_VIEW,
+              PERMISSIONS.PRODUCER_VIEW,
+              PERMISSIONS.APPLICATION_VERIFY,
+            ],
+            'any',
+          )}
+        />
+        <Route
+          path="/audit-log"
+          element={withPerm(<AuditLogPage />, PERMISSIONS.AUDIT_VIEW)}
+        />
 
-        <Route path="/pengaturan" element={<SettingsHubPage />} />
-        <Route path="/pengaturan/branding" element={<BrandingSettingsPage />} />
+        <Route
+          path="/pengaturan"
+          element={withPerm(
+            <SettingsHubPage />,
+            [
+              PERMISSIONS.USER_MANAGE,
+              PERMISSIONS.AUDIT_VIEW,
+              PERMISSIONS.PRODUCER_CREATE,
+            ],
+            'any',
+          )}
+        />
+        <Route
+          path="/pengaturan/branding"
+          element={withPerm(
+            <BrandingSettingsPage />,
+            [PERMISSIONS.USER_MANAGE, PERMISSIONS.PRODUCER_CREATE],
+            'any',
+          )}
+        />
         <Route
           path="/pengaturan/konten-portal"
-          element={<PortalContentSettingsPage />}
+          element={withPerm(
+            <PortalContentSettingsPage />,
+            [PERMISSIONS.USER_MANAGE, PERMISSIONS.PRODUCER_CREATE],
+            'any',
+          )}
         />
-        <Route path="/pengaturan/banner" element={<BannersSettingsPage />} />
+        <Route
+          path="/pengaturan/banner"
+          element={withPerm(
+            <BannersSettingsPage />,
+            [PERMISSIONS.USER_MANAGE, PERMISSIONS.PRODUCER_CREATE],
+            'any',
+          )}
+        />
         <Route
           path="/pengaturan/banner-mobile"
-          element={<MobileBannersSettingsPage />}
+          element={withPerm(
+            <MobileBannersSettingsPage />,
+            [PERMISSIONS.USER_MANAGE, PERMISSIONS.PRODUCER_CREATE],
+            'any',
+          )}
         />
-        <Route path="/pengaturan/katalog" element={<CatalogListingsPage />} />
+        <Route
+          path="/pengaturan/katalog"
+          element={withPerm(
+            <CatalogListingsPage />,
+            [PERMISSIONS.USER_MANAGE, PERMISSIONS.PRODUCER_CREATE],
+            'any',
+          )}
+        />
         <Route
           path="/pengaturan/pendaftaran-penangkar"
-          element={<RegistrationsPage />}
+          element={withPerm(
+            <RegistrationsPage />,
+            [PERMISSIONS.USER_MANAGE, PERMISSIONS.PRODUCER_CREATE],
+            'any',
+          )}
         />
-        <Route path="/pengaturan/pengguna" element={<UsersSettingsPage />} />
-        <Route path="/pengaturan/komoditas" element={<CommoditiesSettingsPage />} />
-        <Route path="/pengaturan/wilayah" element={<RegionsSettingsPage />} />
+        <Route
+          path="/pengaturan/pengguna"
+          element={withPerm(<UsersSettingsPage />, PERMISSIONS.USER_MANAGE)}
+        />
+        <Route
+          path="/pengaturan/komoditas"
+          element={withPerm(
+            <CommoditiesSettingsPage />,
+            [PERMISSIONS.USER_MANAGE, PERMISSIONS.PRODUCER_CREATE],
+            'any',
+          )}
+        />
+        <Route
+          path="/pengaturan/wilayah"
+          element={withPerm(
+            <RegionsSettingsPage />,
+            [PERMISSIONS.USER_MANAGE, PERMISSIONS.PRODUCER_CREATE],
+            'any',
+          )}
+        />
       </Route>
       <Route path="*" element={<Navigate to="/portal" replace />} />
     </Routes>

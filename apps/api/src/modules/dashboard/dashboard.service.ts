@@ -241,11 +241,19 @@ export const dashboardService = {
 
   async certificationStatus(scope: DashboardScope = { roles: [] }) {
     const producerId = scope.producerId ?? undefined;
+    const inspectorId = scope.inspectorId ?? undefined;
     const rows = await prisma.certificationApplication.groupBy({
       by: ['status'],
       where: {
         deletedAt: null,
         ...(producerId ? { producerId } : {}),
+        ...(inspectorId
+          ? {
+              assignments: {
+                some: { inspectorId, deletedAt: null },
+              },
+            }
+          : {}),
         status: {
           notIn: [
             ApplicationStatus.DRAFT,
@@ -501,12 +509,27 @@ export const dashboardService = {
 
   async productionByCommodity(scope: DashboardScope = { roles: [] }) {
     const producerId = scope.producerId ?? undefined;
+    const inspectorId = scope.inspectorId ?? undefined;
     const grouped = await prisma.productionBatch.groupBy({
       by: ['commodityId'],
       where: {
         deletedAt: null,
         status: { in: ACTIVE_PRODUCTION },
         ...(producerId ? { producerId } : {}),
+        ...(inspectorId
+          ? {
+              producer: {
+                applications: {
+                  some: {
+                    deletedAt: null,
+                    assignments: {
+                      some: { inspectorId, deletedAt: null },
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
       },
       _sum: { activeCount: true },
     });
@@ -529,6 +552,19 @@ export const dashboardService = {
 
   async distributionMap(scope: DashboardScope = { roles: [] }) {
     const producerId = scope.producerId ?? undefined;
+    const inspectorId = scope.inspectorId ?? undefined;
+    const assignedProducer = inspectorId
+      ? {
+          producer: {
+            applications: {
+              some: {
+                deletedAt: null,
+                assignments: { some: { inspectorId, deletedAt: null } },
+              },
+            },
+          },
+        }
+      : {};
 
     const [nurseries, gardens] = await Promise.all([
       prisma.nurseryLocation.findMany({
@@ -537,6 +573,7 @@ export const dashboardService = {
           latitude: { not: null },
           longitude: { not: null },
           ...(producerId ? { producerId } : {}),
+          ...assignedProducer,
         },
         include: {
           producer: { select: { businessName: true } },
@@ -551,6 +588,7 @@ export const dashboardService = {
           latitude: { not: null },
           longitude: { not: null },
           ...(producerId ? { producerId } : {}),
+          ...assignedProducer,
         },
         include: {
           producer: { select: { businessName: true } },

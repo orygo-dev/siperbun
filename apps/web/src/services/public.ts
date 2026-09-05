@@ -1,9 +1,7 @@
-import { api, type ApiResponse } from '../lib/api';
+import { api, resolveApiOrigin, type ApiResponse } from '../lib/api';
 import type { DashboardBanner } from './settings';
 
-const API_BASE =
-  import.meta.env.VITE_API_URL?.replace(/\/api\/v1\/?$/, '') ||
-  'http://localhost:3111';
+const API_BASE = resolveApiOrigin();
 
 export function publicAssetUrl(url: string | null | undefined) {
   if (!url) return null;
