@@ -23,6 +23,7 @@ import {
   requireProducerId,
 } from '../../utils/access-scope';
 import { AppError } from '../../utils/errors';
+import { notifyUsers, queuePush, type NotifyPayload } from '../notifications/push.service';
 import { saveMulterFile, serializeStoredFile } from '../../utils/storage';
 
 export const REQUIRED_APPLICATION_DOCUMENTS = APPLICATION_DOCUMENT_TITLES;
@@ -687,7 +688,7 @@ export const certificationApplicationsService = {
       uploadedById: user.id,
     });
 
-    await prisma.$transaction(async (tx) => {
+    const created = await prisma.$transaction(async (tx) => {
       await tx.inspectionReport.create({
         data: {
           applicationId: id,
@@ -734,18 +735,19 @@ export const certificationApplicationsService = {
         where: { producerId: application.producerId, deletedAt: null, isActive: true },
         select: { id: true },
       });
-      if (recipients.length) {
-        await tx.notification.createMany({
-          data: recipients.map((recipient) => ({
-            userId: recipient.id,
-            type: 'INVOICE_ISSUED',
-            title: 'LHP dan invoice tersedia',
-            body: `Invoice ${input.invoiceNumber} menunggu pembayaran.`,
-            link: `/pengajuan/${id}`,
-          })),
-        });
+      const payloads: NotifyPayload[] = recipients.map((recipient) => ({
+        userId: recipient.id,
+        type: 'INVOICE_ISSUED',
+        title: 'LHP dan invoice tersedia',
+        body: `Invoice ${input.invoiceNumber} menunggu pembayaran.`,
+        link: `/pengajuan/${id}`,
+      }));
+      if (payloads.length) {
+        await tx.notification.createMany({ data: payloads });
       }
+      return payloads;
     });
+    queuePush(created);
     return this.getById(id, user);
   },
 
@@ -770,7 +772,7 @@ export const certificationApplicationsService = {
       relativeDir: path.join('payments', String(new Date().getFullYear()), application.applicationNumber),
       uploadedById: user.id,
     });
-    await prisma.$transaction(async (tx) => {
+    const submitted = await prisma.$transaction(async (tx) => {
       await tx.paymentProof.create({
         data: {
           invoiceId: application.invoice!.id,
@@ -805,18 +807,19 @@ export const certificationApplicationsService = {
         },
         select: { id: true },
       });
-      if (admins.length) {
-        await tx.notification.createMany({
-          data: admins.map((admin) => ({
-            userId: admin.id,
-            type: 'PAYMENT_SUBMITTED',
-            title: 'Bukti pembayaran baru',
-            body: `${application.applicationNumber} menunggu verifikasi pembayaran.`,
-            link: `/pengajuan/${id}`,
-          })),
-        });
+      const payloads: NotifyPayload[] = admins.map((admin) => ({
+        userId: admin.id,
+        type: 'PAYMENT_SUBMITTED',
+        title: 'Bukti pembayaran baru',
+        body: `${application.applicationNumber} menunggu verifikasi pembayaran.`,
+        link: `/pengajuan/${id}`,
+      }));
+      if (payloads.length) {
+        await tx.notification.createMany({ data: payloads });
       }
+      return payloads;
     });
+    queuePush(submitted);
     return this.getById(id, user);
   },
 
@@ -849,7 +852,7 @@ export const certificationApplicationsService = {
     const nextStatus = accepted
       ? ApplicationStatus.PAYMENT_VERIFIED
       : ApplicationStatus.PAYMENT_REJECTED;
-    await prisma.$transaction(async (tx) => {
+    const verified = await prisma.$transaction(async (tx) => {
       await tx.paymentProof.update({
         where: { id: proof.id },
         data: {
@@ -880,18 +883,19 @@ export const certificationApplicationsService = {
         where: { producerId: application.producerId, deletedAt: null, isActive: true },
         select: { id: true },
       });
-      if (recipients.length) {
-        await tx.notification.createMany({
-          data: recipients.map((recipient) => ({
-            userId: recipient.id,
-            type: accepted ? 'PAYMENT_ACCEPTED' : 'PAYMENT_REJECTED',
-            title: accepted ? 'Pembayaran telah lunas' : 'Pembayaran ditolak',
-            body: accepted ? 'Sertifikat dapat diproses oleh admin.' : notes!.trim(),
-            link: `/pengajuan/${id}`,
-          })),
-        });
+      const payloads: NotifyPayload[] = recipients.map((recipient) => ({
+        userId: recipient.id,
+        type: accepted ? 'PAYMENT_ACCEPTED' : 'PAYMENT_REJECTED',
+        title: accepted ? 'Pembayaran telah lunas' : 'Pembayaran ditolak',
+        body: accepted ? 'Sertifikat dapat diproses oleh admin.' : notes!.trim(),
+        link: `/pengajuan/${id}`,
+      }));
+      if (payloads.length) {
+        await tx.notification.createMany({ data: payloads });
       }
+      return payloads;
     });
+    queuePush(verified);
     return this.getById(id, user);
   },
 
@@ -1043,6 +1047,17 @@ export const certificationApplicationsService = {
     });
 
     if (!item) throw new AppError('Pengajuan tidak ditemukan', 404);
+
+    await notifyUsers([
+      {
+        userId: input.inspectorId,
+        type: 'ASSIGNMENT_CREATED',
+        title: 'Penugasan pemeriksaan baru',
+        body: `${existing.applicationNumber} dijadwalkan ${input.scheduledDate}.`,
+        link: '/penugasan',
+      },
+    ]);
+
     return serializeApp(item);
   },
 

@@ -68,15 +68,57 @@ const colorMap: Record<string, string> = {
   EXPIRED: 'bg-slate-50 text-slate-600 border-slate-200',
 };
 
-export function StatusBadge({ status }: { status: string }) {
-  const label =
+export type StatusBadgeKind =
+  | 'application'
+  | 'certificate'
+  | 'producer'
+  | 'production'
+  | 'assignment'
+  | 'finding';
+
+function fallbackLabel(status: string) {
+  return status.replaceAll('_', ' ');
+}
+
+export function statusLabel(status: string, kind?: StatusBadgeKind) {
+  if (kind === 'application') {
+    return APPLICATION_STATUS_LABELS[status as ApplicationStatus] ?? fallbackLabel(status);
+  }
+  if (kind === 'certificate') {
+    return CERTIFICATE_STATUS_LABELS[status as CertificateStatus] ?? fallbackLabel(status);
+  }
+  if (kind === 'producer') {
+    return PRODUCER_STATUS_LABELS[status as ProducerStatus] ?? fallbackLabel(status);
+  }
+  if (kind === 'production') {
+    return PRODUCTION_STATUS_LABELS[status as ProductionStatus] ?? fallbackLabel(status);
+  }
+  if (kind === 'assignment') {
+    return ASSIGNMENT_STATUS_LABELS[status as AssignmentStatus] ?? fallbackLabel(status);
+  }
+  if (kind === 'finding') {
+    return FINDING_STATUS_LABELS[status as FindingStatus] ?? fallbackLabel(status);
+  }
+
+  return (
+    APPLICATION_STATUS_LABELS[status as ApplicationStatus] ??
     CERTIFICATE_STATUS_LABELS[status as CertificateStatus] ??
     PRODUCER_STATUS_LABELS[status as ProducerStatus] ??
-    APPLICATION_STATUS_LABELS[status as ApplicationStatus] ??
     PRODUCTION_STATUS_LABELS[status as ProductionStatus] ??
     ASSIGNMENT_STATUS_LABELS[status as AssignmentStatus] ??
     FINDING_STATUS_LABELS[status as FindingStatus] ??
-    status.replaceAll('_', ' ');
+    fallbackLabel(status)
+  );
+}
+
+export function StatusBadge({
+  status,
+  kind,
+}: {
+  status: string;
+  kind?: StatusBadgeKind;
+}) {
+  const label = statusLabel(status, kind);
   return (
     <span
       className={cn(

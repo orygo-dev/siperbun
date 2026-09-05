@@ -247,7 +247,7 @@ export function PenangkarNativeHome({
                     {row.commodity} · {formatNumber(row.seedlingCount)} bibit
                   </div>
                 </div>
-                <StatusBadge status={row.status} />
+                <StatusBadge status={row.status} kind="application" />
                 <ChevronRight size={16} className="shrink-0 text-slate-300" />
               </Link>
             ))

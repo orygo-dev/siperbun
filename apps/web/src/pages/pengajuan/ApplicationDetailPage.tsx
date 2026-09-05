@@ -251,7 +251,7 @@ export function ApplicationDetailPage() {
 
       <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
         <div className="mb-3">
-          <StatusBadge status={a.status} />
+          <StatusBadge status={a.status} kind="application" />
         </div>
         <dl>
           {row(
@@ -547,14 +547,14 @@ export function ApplicationDetailPage() {
               >
                 <div className="flex flex-wrap items-center gap-2">
                   {h.fromStatus ? (
-                    <StatusBadge status={h.fromStatus} />
+                    <StatusBadge status={h.fromStatus} kind="application" />
                   ) : (
                     <span className="text-xs text-[var(--text-secondary)]">
                       —
                     </span>
                   )}
                   <span className="text-xs text-[var(--text-secondary)]">→</span>
-                  <StatusBadge status={h.toStatus} />
+                  <StatusBadge status={h.toStatus} kind="application" />
                 </div>
                 <div className="mt-1 text-xs text-[var(--text-secondary)]">
                   {new Date(h.createdAt).toLocaleString('id-ID')}

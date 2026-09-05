@@ -171,6 +171,9 @@ Butuh `dashboard.view`.
 | GET | `/notifications` |
 | POST | `/notifications/:id/read` |
 | POST | `/notifications/read-all` |
+| POST | `/notifications/devices` | Daftar token FCM (Android/iOS/web) |
+| GET | `/notifications/devices` | Daftar perangkat milik user |
+| DELETE | `/notifications/devices` | Lepas token FCM |
 
 ## Files
 

@@ -38,7 +38,7 @@ export function RecentApplicationsTable({ items }: { items: RecentApplication[] 
                 <td className="py-2.5">{row.commodity}</td>
                 <td className="py-2.5">{formatNumber(row.seedlingCount)}</td>
                 <td className="py-2.5">
-                  <StatusBadge status={row.status} />
+                  <StatusBadge status={row.status} kind="application" />
                 </td>
                 <td className="py-2.5 text-[var(--text-secondary)]">{row.submittedAt}</td>
                 <td className="py-2.5">
@@ -61,7 +61,7 @@ export function RecentApplicationsTable({ items }: { items: RecentApplication[] 
           >
             <div className="flex items-start justify-between gap-2">
               <div className="font-medium">{row.applicationNumber}</div>
-              <StatusBadge status={row.status} />
+              <StatusBadge status={row.status} kind="application" />
             </div>
             <div className="mt-2 space-y-1 text-[var(--text-secondary)]">
               <div>{row.producer}</div>

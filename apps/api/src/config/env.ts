@@ -41,6 +41,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     cookieSecure: nodeEnv === 'production' || source.COOKIE_SECURE === 'true',
     storagePath: source.STORAGE_PATH ?? './storage',
     isDev: nodeEnv !== 'production',
+    fcmProjectId: source.FCM_PROJECT_ID ?? '',
+    fcmClientEmail: source.FCM_CLIENT_EMAIL ?? '',
+    fcmPrivateKey: (source.FCM_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
   };
 }
 

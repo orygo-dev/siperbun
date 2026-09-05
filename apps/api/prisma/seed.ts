@@ -142,6 +142,7 @@ async function main() {
     'seed_standards',
     'varieties',
     'commodities',
+    'device_push_tokens',
     'notifications',
     'activity_logs',
     'audit_logs',

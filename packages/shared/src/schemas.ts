@@ -1084,3 +1084,32 @@ export const producerRegistrationSchema = z.object({
 export type ProducerRegistrationInput = z.infer<
   typeof producerRegistrationSchema
 >;
+
+export const pushPlatformSchema = z.enum(['ANDROID', 'IOS', 'WEB']);
+
+export const registerDeviceSchema = z.object({
+  token: z.string().trim().min(10, 'Token FCM wajib diisi').max(512),
+  platform: pushPlatformSchema,
+  deviceId: z
+    .string()
+    .trim()
+    .max(191)
+    .optional()
+    .nullable()
+    .transform((v) => (v === '' || v == null ? null : v)),
+  appVersion: z
+    .string()
+    .trim()
+    .max(50)
+    .optional()
+    .nullable()
+    .transform((v) => (v === '' || v == null ? null : v)),
+});
+
+export type RegisterDeviceInput = z.infer<typeof registerDeviceSchema>;
+
+export const unregisterDeviceSchema = z.object({
+  token: z.string().trim().min(10).max(512),
+});
+
+export type UnregisterDeviceInput = z.infer<typeof unregisterDeviceSchema>;

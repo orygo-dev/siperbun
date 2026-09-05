@@ -65,7 +65,7 @@ export function ApplicationsListPage() {
       {
         key: 'status',
         header: 'Status',
-        render: (row) => <StatusBadge status={row.status} />,
+        render: (row) => <StatusBadge status={row.status} kind="application" />,
       },
     ],
     [],

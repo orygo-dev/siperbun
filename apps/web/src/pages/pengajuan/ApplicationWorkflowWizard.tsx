@@ -1,3 +1,4 @@
+import { APPLICATION_STATUS_LABELS, type ApplicationStatus } from '@siperbun/shared';
 import { Check } from 'lucide-react';
 
 const STEPS = [
@@ -29,7 +30,11 @@ export function ApplicationWorkflowWizard({ status }: { status: string }) {
               <span className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold ${complete || active ? 'border-primary bg-primary text-white' : 'border-slate-300 bg-white text-slate-400'}`}>
                 {complete ? <Check className="h-5 w-5" /> : index + 1}
               </span>
-              <span className={`mt-2 text-xs font-medium ${active ? 'text-primary' : complete ? 'text-slate-700' : 'text-slate-400'}`}>{step.label}</span>
+              <span className={`mt-2 text-xs font-medium ${active ? 'text-primary' : complete ? 'text-slate-700' : 'text-slate-400'}`}>
+                {active
+                  ? APPLICATION_STATUS_LABELS[status as ApplicationStatus] ?? step.label
+                  : step.label}
+              </span>
             </li>
           );
         })}

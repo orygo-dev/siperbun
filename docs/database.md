@@ -14,7 +14,7 @@ Provider: **MySQL** via Prisma.
 | Temuan | Finding, CorrectiveAction, InspectionChecklist* |
 | Sertifikat | Certificate, CertificateVersion, StoredFile |
 | Distribusi & pengawasan | SeedLabel, SeedDistribution, CirculationInspection |
-| Sistem | Notification, ActivityLog, AuditLog, AppSetting |
+| Sistem | Notification, DevicePushToken, ActivityLog, AuditLog, AppSetting |
 
 ## Catatan desain
 

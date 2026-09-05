@@ -29,7 +29,7 @@ Browser (apps/web)
 2. Access token dikirim di header `Authorization: Bearer …`
 3. Refresh token HTTP-only cookie (`siperbun_refresh`, path `/api/v1/auth`) dirotasi via `POST /auth/refresh`
 4. Middleware `authenticate` + `requirePermission` / `requireAnyPermission`
-5. Service menulis ke DB; operasi penting dicatat ke `AuditLog` / `ActivityLog` / notifikasi
+5. Service menulis ke DB; operasi penting dicatat ke `AuditLog` / `ActivityLog` / notifikasi. Notifikasi penting juga dikirim ke perangkat Android lewat FCM jika token perangkat sudah terdaftar.
 
 ## Modul backend (Stage 1–6)
 
