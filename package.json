@@ -10,6 +10,7 @@
     "db:generate": "pnpm --filter @siperbun/api prisma:generate",
     "db:migrate": "pnpm --filter @siperbun/api prisma:migrate",
     "db:seed": "pnpm --filter @siperbun/api prisma:seed",
+    "db:seed:demo-penangkar": "pnpm --filter @siperbun/api prisma:seed:demo-penangkar",
     "db:push": "pnpm --filter @siperbun/api prisma:push",
     "prisma:validate": "pnpm --filter @siperbun/api exec prisma validate",
     "postinstall": "pnpm db:generate"

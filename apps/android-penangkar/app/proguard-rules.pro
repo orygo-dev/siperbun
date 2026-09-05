@@ -1,0 +1,2 @@
+-keepattributes Signature
+-keep class id.go.kalsel.siperbun.penangkar.data.api.** { *; }

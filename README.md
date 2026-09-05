@@ -9,6 +9,7 @@ Stage **1–7 selesai**: fondasi, master data, produksi & pengajuan, inspeksi, s
 ## Stack
 
 - **Frontend:** React + Vite + TypeScript + Tailwind CSS
+- **Android Penangkar:** Kotlin + Jetpack Compose (`apps/android-penangkar`)
 - **Backend:** Express + Prisma + MySQL
 - **Shared:** `@siperbun/shared`, `@siperbun/ui`, `@siperbun/config`
 
@@ -97,6 +98,12 @@ pnpm dev
 | admin1@siperbun.local | password | Admin |
 | ahmad@siperbun.local | password | PBT |
 | penangkar1@siperbun.local | password | Penangkar |
+| demo.penangkar@siperbun.local | password | Penangkar (demo semua alur aplikasi) |
+
+Akun `demo.penangkar@siperbun.local` dibuat oleh seed utama atau seed additive `pnpm db:seed:demo-penangkar` (aman, tidak menghapus data lain). Isinya contoh semua status pengajuan, pembayaran, produksi, sertifikat, distribusi, dan notifikasi. Di aplikasi Android Penangkar ketuk **Masuk Demo**.
+| demo.penangkar@siperbun.local | password | Penangkar (demo semua alur aplikasi) |
+
+Akun `demo.penangkar@siperbun.local` dibuat oleh seed utama atau seed additive `pnpm db:seed:demo-penangkar` (aman, tidak menghapus data lain). Isinya contoh semua status pengajuan, pembayaran, produksi, sertifikat, distribusi, dan notifikasi. Di aplikasi Android Penangkar ketuk **Masuk Demo**.
 
 ## Perintah penting
 
@@ -144,6 +151,7 @@ ecosystem.config.cjs   Contoh PM2
 | [`docs/deployment.md`](docs/deployment.md) | Deploy Windows/Linux |
 | [`docs/deployment-aapanel-apache.md`](docs/deployment-aapanel-apache.md) | **Deploy aaPanel + Apache (lengkap)** |
 | [`docs/testing.md`](docs/testing.md) | Cara menjalankan tes |
+| [`apps/android-penangkar/README.md`](apps/android-penangkar/README.md) | Aplikasi Android Penangkar |
 | [`docs/changelog-stages.md`](docs/changelog-stages.md) | Ringkasan Stage 1–7 |
 
 ## Troubleshooting

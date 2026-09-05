@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { ALL_PERMISSIONS, PERMISSIONS, ROLE_PERMISSIONS, ROLES } from '@siperbun/shared';
+import { seedDemoPenangkar } from './seed-demo-penangkar';
 
 const prisma = new PrismaClient();
 
@@ -976,8 +977,11 @@ async function main() {
     });
   }
 
+  await seedDemoPenangkar(prisma);
+
   console.log('✅ Seed selesai');
-  console.log('   Demo: admin@siperbun.local / password');
+  console.log('   Demo admin     : admin@siperbun.local / password');
+  console.log('   Demo penangkar : demo.penangkar@siperbun.local / password');
   console.log(`   Producers: ${producers.length}`);
   console.log(`   Nurseries: ${nurseries.length}`);
   console.log(`   Batches: ${batches.length}`);
